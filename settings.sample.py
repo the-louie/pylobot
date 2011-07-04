@@ -24,13 +24,12 @@ class Settings(AutoReloader):                      # these two lines
 
 	# Plugins that will be loaded on startup from plugins/
 	# Use this directory to view all available Plugins and to add your own.
-	plugins = ['plugins', 'command_catcher', 'commands', 'standard',
-		   'reloader', 'options', 'utility']
+	plugins = ['plugins', 'command_catcher', 'commands', 'standard', 'utility']
 
 	# If you want to enable more plugins comment out the above
 	# and uncomment the ones below.
-	#plugins = ['plugins', 'command_catcher', 'commands', 'standard',
-	#	   'reloader', 'options', 'utility',
+	#plugins = ['plugins', 'command_catcher', 'commands', 'standard', 'utility',
+        #          "options", "admin", "google", "insult", "temperature_nu", "wikipedia"
 	#	   "aduno", "alpha", "char", "code", "compliment", "countdown", 
 	#	   "down", "example_plugin", "favorites", "festern_bbq", "fml", 
 	#	   "food", "game_plugin", "give", "googlefight", "ical_parser", 
