@@ -28,8 +28,8 @@ class Settings(AutoReloader):                      # these two lines
 
 	# If you want to enable more plugins comment out the above
 	# and uncomment the ones below.
-	#plugins = ['plugins', 'command_catcher', 'commands', 'standard', 'utility',
-        #          "options", "admin", "google", "insult", "temperature_nu", "wikipedia"
+	#plugins = ['plugins', 'command_catcher', 'commands', 'standard', 'reloader', 'utility',
+        #          "options", "admin", "google", "insult", "temperature_nu", "wikipedia",
 	#	   "aduno", "alpha", "char", "code", "compliment", "countdown", 
 	#	   "down", "example_plugin", "favorites", "festern_bbq", "fml", 
 	#	   "food", "game_plugin", "give", "googlefight", "ical_parser", 
