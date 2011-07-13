@@ -48,7 +48,7 @@ class Restaurant():
 		return "I'm sorry Dave I don't recognize that restaurant. Hmm, should not reach this."
 
 class Preston(Restaurant):
-	restaurants = ["JB", "Husman", "Chili", "Golfinn", "Collegium", "Vallfarten"]
+	restaurants = ["JB", "Husman", "Chili", "Golfinn", "Vallfarten",] # "Collegium"]
 	url = "http://www.preston.se/dagens.html"
 
 	def fetchFood(self, restaurant, day=None):
@@ -111,6 +111,39 @@ class Preston(Restaurant):
 		else:
 			return result
 
+
+class Collegium(Restaurant):
+	restaurants = ["Collegium"]
+	url = "http://www.collegium.nu/offerdetail.asp?OfferID=1419"
+
+	def fetchFood(self, restaurant, day=None):
+		if day == "today":
+			return "Wiseass aren't you?"
+		elif day != None:
+			return "I'm sorry Dave Preston can only handle 'today'."
+		
+
+		response = utility.read_url(self.url)
+		data = response["data"]
+
+                lunches = re.findall("</b>\s*<BR>([^<]*)<", data)
+                if lunches[0][0:6] == "Vi har":
+                        lunches = lunches[1:]
+
+                cnt = 1
+		result = "Lunch Collegium "
+			
+		for lunch in lunches:
+			result += str(cnt) + ": " + lunch + " "
+			cnt += 1
+
+		if result[-1:] == " ":
+			result = result[:-1]
+
+		if len(result) == 0 or len(lunches) == 0:
+			return "No lunch available at %s ):" % restaurant
+		else:
+			return result
 
 
 class Blaumesen(Restaurant):
@@ -264,6 +297,7 @@ class Food(Command):
 		r2 = r1.setNext(Blaumesen())
 		r3 = r2.setNext(DeeJays())
 		r4 = r3.setNext(JohnBauer())
+		r5 = r4.setNext(Collegium())
 
 	def trig_lunch(self, bot, source, target, trigger, argument, network, **kwargs):
 		""" Presents food, usage: {<restaurant>,list} """
