@@ -117,6 +117,8 @@ class Collegium(Restaurant):
 	url = "http://www.collegium.nu/offerdetail.asp?OfferID=1419"
 
 	def fetchFood(self, restaurant, day=None):
+                if datetime.now() < datetime(2011, 8, 7):
+                        return "Nien nien nien! http://www.youtube.com/watch?v=fkmv2eAESfM"
 		if day == "today":
 			return "Wiseass aren't you?"
 		elif day != None:
@@ -304,13 +306,15 @@ class Food(Command):
 		return self.trig_food(bot, source, target, trigger, argument, network, **kwargs)
 		
 	def trig_food(self, bot, source, target, trigger, argument, network, **kwargs):
-		""" Presents food, usage: {<restaurant>,list} """
+		""" Presents food, usage: {<restaurant>,list,url} """
 		def usage():
 			return "Try with ." + trigger + " restaurant [day], I know of: " + ", ".join(self.restaurants.getAllRestaurants())
 
 		argument = argument.strip()
 		if argument == "list":
-			return "Restaurants: " + ", ".join(self.restaurants.getAllRestaurants()) + " Urls: " + ", ".join(self.restaurants.getAllUrls())
+			return "Restaurants: " + ", ".join(self.restaurants.getAllRestaurants())
+                elif argument == "url":
+                        return "Resturants urls: " + ", ".join(self.restaurants.getAllUrls())
 		elif argument:
 			self.restaurant[source] = argument
 			self.save()
