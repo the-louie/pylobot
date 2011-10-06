@@ -93,7 +93,7 @@ class IRCClient(AutoReloader):
 				sent = self.s.send(data)
 			except UnicodeEncodeError:
 				# Try fallback coding instead
-				sent =  self.s.send(data.encode(settings.Settings().recode_fallback, "replace"))
+				sent =  self.s.send(data.encode(settings.Settings().recode_fallback, "ignore"))
 
 			data = data[sent:]
 
