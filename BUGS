@@ -7,5 +7,20 @@ Serious shit
 * The title reader can freeze sometimes. I think this is because the httpreader module is a little buggy.
 * shuting down the bot probably results in on_unload not being run => no saved states
 
+* Odd stuff:
+[11:56:56] quakenet SENT: PRIVMSG #f0bar :Reloaded and good to go!
+updating <class 'ircbot.IRCBot'>
+Traceback (most recent call last):
+  File "main.py", line 46, in <module>
+    pdb.run(Tick())
+  File "main.py", line 28, in Tick
+    reload(settings)
+  File "/riverbot/settings.py", line 2, in <module>
+    class Settings(AutoReloader):                      # these two lines
+  File "/usr/home/riverbot/chroot/riverbot.git/autoreloader/autoreloader.py", line 31, in __new__
+  File "/usr/home/riverbot/chroot/riverbot.git/autoreloader/autoreloader.py", line 11, in __instances__
+MemoryError
+
+
 Small
 =====
