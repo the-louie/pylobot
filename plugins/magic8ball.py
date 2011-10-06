@@ -5,7 +5,9 @@ import random
 
 class Magic8Ball(Command):
 	def trig_8ball(self, bot, source, target, trigger, argument):
-		if len(argument) < 5:
+                if argument == "?":
+                        return "!"
+		elif len(argument) < 5:
 			return "I don't think that is a question"
 		elif argument.lower().find("ice") != -1:
 			return "Ask again later"
