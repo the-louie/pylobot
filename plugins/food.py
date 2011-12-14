@@ -232,6 +232,22 @@ class DeeJays(Restaurant):
 		else:
 			return "Stängt ):"
 
+class Donken(Restaurant):
+        restaurants = ["Donken"]
+        url = "http://hardonkenbigtasty.nu/"
+        def fetchFood(self, restaurant, today=None):
+                response = utility.read_url(self.url)
+                data = response["data"]
+                start = data.lower().find("<p class=\"big\">")
+                if start != -1:
+                        start += 15
+                        end = data[start:].lower().find("</p>")
+                        if end != -1:
+                                end = start + end
+                                return "Donken lunch: " + data[start:end]
+                else:
+                        return "Donken lunch: dunno :("
+
 class JohnBauer(Restaurant):
 	restaurants = []
 	url = "http://www.johnbauer.nu/linkoping/om-skolan/restaurang-bjorkudden"
@@ -300,6 +316,7 @@ class Food(Command):
 		r3 = r2.setNext(DeeJays())
 		r4 = r3.setNext(JohnBauer())
 		r5 = r4.setNext(Collegium())
+                r6 = r5.setNext(Donken())
 
 	def trig_lunch(self, bot, source, target, trigger, argument, network, **kwargs):
 		""" Presents food, usage: {<restaurant>,list} """
