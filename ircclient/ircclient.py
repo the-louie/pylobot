@@ -8,6 +8,7 @@ import errno
 import random
 import string
 import settings
+import ssl
 
 from autoreloader.autoreloader import AutoReloader
 
@@ -61,7 +62,19 @@ class IRCClient(AutoReloader):
 
 		self.active_session = False
 		self.ping_count = 0
-		self.connected = self.s.connect_ex((address, port)) == 0
+
+		try:
+			if settings.Settings().networks[self.network].setdefault("ssl", False):
+				self.s = ssl.wrap_socket(self.s)
+		except Exception, ex:
+			print timestamp() + " " + self.network + " Connection with SSL failed, " + str(ex)
+
+		try:
+			self.s.connect((address, port))
+			self.connected = True
+		except Exception, ex:
+			print timestamp() + " " + self.network + " Connect failed, " + str(ex)
+			self.connected = False
 
 		if self.connected:
 			self.s.setblocking(False)
@@ -281,6 +294,10 @@ class IRCClient(AutoReloader):
 
 			except socket.error, (error_code, error_message):
 				if error_code != errno.EWOULDBLOCK:
+					self.connected = False
+					print (error_code, error_message)
+			except ssl.SSLError, (error_code, error_message):
+				if error_code != errno.EWOULDBLOCK and error_code != errno.ENOENT:
 					self.connected = False
 					print (error_code, error_message)
 		else:
