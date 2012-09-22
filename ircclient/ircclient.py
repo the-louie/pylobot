@@ -292,12 +292,12 @@ class IRCClient(AutoReloader):
 							if m.group(3) in self.message_handlers:
 								self.message_handlers[m.group(3)](m.group(0, 1, 2, 3, 4, 5))
 
-			except socket.error, (error_code, error_message):
-				if error_code != errno.EWOULDBLOCK:
-					self.connected = False
-					print (error_code, error_message)
 			except ssl.SSLError, (error_code, error_message):
 				if error_code != errno.EWOULDBLOCK and error_code != errno.ENOENT:
+					self.connected = False
+					print (error_code, error_message)
+			except socket.error, (error_code, error_message):
+				if error_code != errno.EWOULDBLOCK:
 					self.connected = False
 					print (error_code, error_message)
 		else:
