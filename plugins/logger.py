@@ -25,11 +25,15 @@ class Logger(Command):
   def __init__(self):
     self.svn = pysvn.Client()
     self.svn.callback_get_login = self._get_login
+    self.svn.callback_ssl_server_trust_prompt = self._ssl_trust
     self.logs = {}
 
   def _get_login(self, realm, username, may_save):
     return True, Settings().log_svn_username, \
       Settings().log_svn_password, False
+
+  def _ssl_trust(self, trust_dict):
+    return True, 1, True
 
   def on_load(self):
     pass
