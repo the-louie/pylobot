@@ -109,7 +109,10 @@ class Preston(Restaurant):
 		if len(result) == 0 or len(lunches) == 0:
 			return "No lunch available at %s ):" % restaurant
 		else:
-			return result
+                        try:
+                                return result.decode("utf-8").encode("iso-8859-1")
+                        except:
+                                return result
 
 
 class Collegium(Restaurant):
