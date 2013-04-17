@@ -284,7 +284,7 @@ class JohnBauer(Restaurant):
 
 			lines = data[start:start+search.end()].split("\n")
 			for line in lines:
-				print line
+				#print line
 				search = re.search("</strong>[ ]?([^<]*)<br />", line)
 				if search:
 					print search.group(1)
@@ -322,35 +322,36 @@ class Monark(Restaurant):
 		ofset = 0
 		result = ""
 
-		ldays = ["M\xc3\xa5ndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "L\xc3\xb6rdag", "S\xc3\xb6ndag"]
-		days = {"M\xc3\xa5ndag": "gfx/meny_day_1.gif",
-                        "M\xe5ndag": "gfx/meny_day_1.gif", 
-                        "Tisdag": "gfx/meny_day_2.gif",
-                        "Onsdag": "gfx/meny_day_3.gif",
-                        "Torsdag": "gfx/meny_day_4.gif",
-                        "Fredag": "gfx/meny_day_5.gif",
+                found_restaurant = "Monark"
+		ldays = ["m\xc3\xa5ndag", "tisdag", "onsdag", "torsdag", "fredag","l\xc3\xb6rdag", "s\xc3\xb6ndag"]
+		days = {"m\xc3\xa5ndag": "gfx/meny_day_1.gif",
+                        "m\xe5ndag": "gfx/meny_day_1.gif", 
+                        "tisdag": "gfx/meny_day_2.gif",
+                        "onsdag": "gfx/meny_day_3.gif",
+                        "torsdag": "gfx/meny_day_4.gif",
+                        "fredag": "gfx/meny_day_5.gif",
                         }
 		if not today:
-			today = days[ldays[datetime.now().isoweekday()-1]]
+                        day = ldays[datetime.now().isoweekday()-1]
+			today = days[day]
                 else:
+                        day = today
                         today = days[today]
 
-		# find week
-		#search = re.search('kudden v ([0-9]+)', data)
-		#if search:
-		#	week = search.group(1)
+                # find week
+		search = re.search('<FONT CLASS="rubrik"><B>Vecka ([0-9]+)</B></FONT></TD>', data)
+		if search:
+			week = search.group(1)
 
 		# find day
 		start = data.lower().find(today)
-                end = data[start:].find("gfx/meny_day")
+                end = data[start+1:].find("gfx/meny_day")
                 if end == 0:
-                        end = len(data)               
+                        end = len(data)
 
-                print start,end
-
-                lunches = re.findall('<FONT CLASS="rubrik"><B>&nbsp;([^:]*)[^>]*>([^<]*)</FONT>', data[start:end])
+                lunches = re.findall('<FONT CLASS="rubrik"><B>&nbsp;([^:]*)[^>]*>([^<]*)</FONT>', data[start:start+end])
 		if lunches:
-                        print lunches
+                        #print lunches
 
 			# create result
 			cnt = 1
@@ -358,7 +359,7 @@ class Monark(Restaurant):
 				result = "Lunch " + found_restaurant + " " + day + " v" + week + " "
 
 			for lunch in lunches:
-				result += lunch[0] + ": " + lunch[1] + " "
+				result += lunch[0].strip() + ": " + lunch[1].strip() + " "
 				cnt += 1
 
 			if result[-1:] == " ":
