@@ -211,9 +211,9 @@ class IRCClient(AutoReloader):
 
 		source_nick = self.get_nick(source)
 
-		for nick_list in self.nick_lists.values():
-			if source_nick in nick_list:
-				nick_list.remove(source_nick)
+		nick_lists[channel].remove(source_nick)
+
+
 
 	def on_quit(self, tupels):
 		source = tupels[1]
