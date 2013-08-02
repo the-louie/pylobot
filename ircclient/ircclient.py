@@ -153,12 +153,11 @@ class IRCClient(AutoReloader):
 
 			if self.temp_nick_list_channel != channel:
 				self.temp_nick_list_channel = channel
-				self.temp_nick_list = []
+				self.temp_nick_list = {}
 
 			for m in re.findall('([^a-zA-Z\[\]{}]?)(.+?)(\s|$)', nicks):
 				prefix, nick = m[0:2]
-
-				self.temp_nick_list.append(nick)
+				self.temp_nick_list[nick] = {'prefix':prefix}
 			
 	def on_end_nick_list(self, tupels):
 		self.nick_lists[self.temp_nick_list_channel] = self.temp_nick_list
