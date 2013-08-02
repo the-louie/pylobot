@@ -23,6 +23,7 @@ class IRCClient(AutoReloader):
 		self.temp_nick_list = None
 		self.nick_lists = {}
 		self.users_list = {}
+		self.isupport = {}
 		self.recv_buf = ''
 		self.callbacks = {}
 
@@ -48,7 +49,7 @@ class IRCClient(AutoReloader):
 			'001': self.on_connected,
 			'433': self.on_nick_inuse,
 			'302': self.on_userhost,
-
+			'005': self.on_isupport,
 		}
 
 		self.server_address = address;
@@ -299,6 +300,21 @@ class IRCClient(AutoReloader):
 
 		if "on_connected" in self.callbacks:
 			self.callbacks["on_connected"](self.network)
+
+	def on_isupport(self,tupels):
+		message = tupels[5][:tupels[5].index(':')]
+		isupport = {}
+		for item in message.split(' '):
+			keyval = item.split('=')
+			if len(keyval) == 1:
+				key = keyval[0]
+				val = True
+			else:
+				key = keyval[0]
+				val = keyval[1]
+
+			isupport[key] = val
+		self.isupport.update(isupport)
 
 	def on_error(self, tupels):
 		message = tupels[5]
