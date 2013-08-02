@@ -22,6 +22,7 @@ class IRCClient(AutoReloader):
 		self.temp_nick_list_channel = None
 		self.temp_nick_list = None
 		self.nick_lists = {}
+		self.users_list = {}
 		self.recv_buf = ''
 		self.callbacks = {}
 
@@ -46,6 +47,8 @@ class IRCClient(AutoReloader):
 			'366': self.on_end_nick_list,
 			'001': self.on_connected,
 			'433': self.on_nick_inuse,
+			'302': self.on_userhost,
+
 		}
 
 		self.server_address = address;
@@ -161,8 +164,21 @@ class IRCClient(AutoReloader):
 			
 	def on_end_nick_list(self, tupels):
 		self.nick_lists[self.temp_nick_list_channel] = self.temp_nick_list
+
+		tmp_nicklist = []
+		for nick in self.nick_lists[self.temp_nick_list_channel]:
+			if len(tmp_nicklist) <= 5:
+				tmp_nicklist.append(nick)
+			else:
+				self.send('USERHOST ' + ' '.join(tmp_nicklist))
+				tmp_nicklist = []
+
+		if tmp_nicklist is not None:
+			self.send('USERHOST ' + ' '.join(tmp_nicklist))
+
 		self.temp_nick_list_channel = None
 		self.temp_nick_list = None
+		tmp_nicklist = None
 
 	def on_join(self, tupels):
 		source, channel = [tupels[1], tupels[4]]
@@ -194,10 +210,25 @@ class IRCClient(AutoReloader):
 
 		source_nick = self.get_nick(source)
 
+		if source_nick in self.users_list.keys():
+			self.users_list[new_nick] = self.users_list[source_nick]
+			del self.users_list[source_nick]
+
 		for nick_list in self.nick_lists.values():
 			if source_nick in nick_list:
 				nick_list.remove(source_nick)
 				nick_list.append(new_nick)
+
+	def on_userhost(self, tupels):
+		message = tupels[5]
+		userhosts = tupels[5].split(' ')
+		for userhost in userhosts:
+			m = re.search('^(.+)=\+?(.+@.*)$', userhost)
+			if m is not None:
+				self.users_list[m.group(1)] = m.group(2)
+
+		if "on_userhost" in self.callbacks:
+			self.callbacks["on_userhost"]()
 
 	def on_nick_inuse(self, tuples):
 		self.send("NICK " + self.nick + "_" + "".join([random.choice(string.ascii_letters + 
@@ -213,7 +244,13 @@ class IRCClient(AutoReloader):
 
 		nick_lists[channel].remove(source_nick)
 
+		last_channel = True
+		for nick_list in self.nick_lists.values():
+			if source_nick in nick_list:
+				last_channel = False
 
+		if last_channel:
+			users_list.remove(source_nick)
 
 	def on_quit(self, tupels):
 		source = tupels[1]
@@ -230,6 +267,10 @@ class IRCClient(AutoReloader):
 		for nick_list in self.nick_lists.values():
 			if source_nick in nick_list:
 				nick_list.remove(source_nick)
+
+		if source_nick in self.users_list.keys():
+			del self.users_list[source_nick]
+
 
 	def on_ping(self, tupels):
 		self.ping_count += 1
