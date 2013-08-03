@@ -101,9 +101,9 @@ def timeout(f, timeout = 1, args = (), kwargs = {}):
 	return result
 
 def extract_nick(host):
-	m = re.search('^(.+)!', host)
+	m = re.search('^:?(.+)!', host)
 	if m:
-		return m.group(1)
+		return str(m.group(1))
 	else:
 		return host
 
