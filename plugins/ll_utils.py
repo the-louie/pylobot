@@ -126,3 +126,49 @@ def kickban(client, targetnick, banmask, reason, duration):
 		client.send('MODE %s +b %s' % (channel, banmask))
 		client.send('KICK %s %s :%s' % (channel, targetnick, reason))
 		bot.add_timer(datetime.timedelta(0, duration), False, client.send, 'MODE %s -b %s' % (channel, banmask))
+
+'''
+	handle swarm messages and stuff
+'''
+def update_swarn_range(swarm_range, vote):
+	swarm_range = (min(Settings.swarm_range[0], vote), max(Settings.swarm_range[1], vote))
+
+	return swarm_range
+	
+
+def parse_vote(argument):
+	try:
+		(vote_id_str, vote_value_str) = argument.split(' ')
+	except Exception:
+		return (None, None)
+
+	try:
+		vote_id = int(vote_id_str)
+	except Exception:
+		return (None, None)
+
+	try:
+		vote_value = int(vote_value_str)
+	except Exception:
+		return (None, None)
+
+	return (vote_id, vote_value)
+
+
+def get_swarm_range(Settings):
+	sorted_swarm_votes = sorted(Settings.swarm_votes.values())
+	my_index = sorted_swarm_votes.index(Settings.swarm_random)
+	client_count = len(Settings.swarm_votes)
+
+	buckets = [0]
+	bucket_size = 256.0/(len(sorted_swarm_votes))
+	curr_bucket = bucket_size
+	for tmp in range(0,255):
+	  if tmp > curr_bucket:
+	  	buckets.append(tmp)
+	  	curr_bucket = curr_bucket + bucket_size
+
+	buckets.append(255)
+	swarm_range = (buckets[my_index],buckets[my_index+1])
+
+	return swarm_range
