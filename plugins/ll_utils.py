@@ -1,6 +1,93 @@
 import re
 from utility import extract_nick
 from ll_settings import landladySettings as Settings
+import sys
+import sqlite3
+
+'''
+
+	Connect to db and if needed populate it with
+	the default values from ll_settings.py
+
+'''
+def db_connect():
+	if (Settings.db_con) and (Settings.db_cur):
+		print "INFO: Already connected to db."
+		return True
+
+	# connect to db
+	try:
+		dbcon = sqlite3.connect('data/landlady.db')
+		dbcur = dbcon.cursor()
+	except Exception, e:
+		print "ERROR: Couldn't open database, %s" % e
+		sys.exit(1)
+
+	# on first run we might have to create the table
+	try:
+		dbcur.execute("CREATE TABLE IF NOT EXISTS landlady_config (section TEXT, key TEXT, value TEXT)")
+	except Exception, e:
+		print "ERROR: couln't create table, %s" % e
+
+	# load the data from the db, and if there's default values missing add them in
+	for section in Settings.default.keys():
+		print "Loading %s" % section
+		try:
+			dbcur.execute('SELECT key, value FROM landlady_config WHERE section = ?', [section])
+		except Exception, e:
+			print "ERROR: Fetching config, %s" % (e)
+			sys.exit(1)
+
+		loaded_vals = []
+		rows = dbcur.fetchall()
+		if len(rows) == 0:
+			print "WARNING: No settings found for %s, using default" % section
+		for row in rows:
+			loaded_vals.append(row[0])
+			Settings.default[section][row[0]] = row[1]
+
+		for key in settings[section].keys():
+			if key not in loaded_vals:
+				print "INFO: Updating %s with %s=%s" % (section,key,Settings.default[section][key])
+				try:
+					dbcur.execute('INSERT INTO landlady_config (section, key, value) VALUES (?,?,?)', [section, key, Settings.default[section][key]])
+				except Exception, e:
+					print "ERROR: Couln't update database, %s" % e
+
+		dbcon.commit()
+
+
+	for key in Settings.default['kb_commands'].keys():
+		Settings.kb_commands[key] = (Settings.default['kb_commands'][key].split(' ',2)[1],Settings.default['kb_commands'][key].split(' ',2)[0])
+		print "DEBUG: kb_commands loading %s '%s' -> (%s,%s)." % (key,Settings.default['kb_commands'][key],Settings.default['kb_commands'][key].split(' ',2)[1],Settings.default['kb_commands'][key].split(' ',2)[0])
+
+	for key in Settings.default['kb_settings'].keys():
+		Settings.kb_settings[key] = copy.copy(Settings.default['kb_settings'][key])
+		print "DEBUG: kb_settings, %s = %s" % (key,Settings.default['kb_settings'][key])
+
+
+	Settings.swarm = copy.deepcopy(Settings.default['swarm'])
+
+	#
+	# take care of special variables
+	# FIXME: This shouldn't be among settings.
+	#
+	Settings.swarm['range'] = (65535,0)
+	Settings.swarm['votes'] = {}
+	Settings.swarm['enabled'] = False
+	Settings.swarm['id'] = 0
+	Settings.swarm['random'] = 0
+	Settings.swarm['voteid'] = -1
+
+
+
+	Settings.db_con = dbcon
+	Settings.db_cur = dbcur
+
+
+
+
+
 
 '''
 	Take the arguments for a kb kb_command
@@ -42,8 +129,17 @@ def parse_kb_arguments(argument,source):
 	return (cmd,reason,targetnick,bantime_int)
 
 
+
+
+
 '''
+
 	Ban someone
+
+	The functions handels the creation of the banmask so
+	it's unique to the user and the accuall commands to
+	the irc-server
+
 '''
 def match_banmask(client, targetnick, banmask, channel):
 	matches = []
@@ -127,14 +223,26 @@ def kickban(client, targetnick, banmask, reason, duration):
 		client.send('KICK %s %s :%s' % (channel, targetnick, reason))
 		bot.add_timer(datetime.timedelta(0, duration), False, client.send, 'MODE %s -b %s' % (channel, banmask))
 
+
+
+
+
+
+
+
 '''
+
 	handle swarm messages and stuff
+
+	The following functions handles voting and also decides
+	if a action is to be taken depending on a keyword
+
 '''
 def update_swarn_range(swarm_range, vote):
 	swarm_range = (min(Settings.swarm_range[0], vote), max(Settings.swarm_range[1], vote))
 
 	return swarm_range
-	
+
 
 def parse_vote(argument):
 	try:
@@ -165,8 +273,8 @@ def get_swarm_range(Settings):
 	curr_bucket = bucket_size
 	for tmp in range(0,255):
 	  if tmp > curr_bucket:
-	  	buckets.append(tmp)
-	  	curr_bucket = curr_bucket + bucket_size
+		buckets.append(tmp)
+		curr_bucket = curr_bucket + bucket_size
 
 	buckets.append(255)
 	swarm_range = (buckets[my_index],buckets[my_index+1])
