@@ -9,7 +9,7 @@ class Landlady(Command):
 	def __init__(self):
 		pass
 
-	""" 
+	"""
 		Take care of any incoming kick-ban requests
 	"""
 	def trig_kb(self, bot, source, target, trigger, argument, network):
@@ -37,15 +37,15 @@ class Landlady(Command):
 
 
 	"""
-		If we join the cc_channel we need to vote
+		If we join the swarm_channel we need to vote
 	"""
 	def on_join(self, bot, userhost, channel, network, **kwargs):
 		print "ON_JOIN"
 		nick = extract_nick(userhost)
 		print "%s %s" % (nick,channel)
-		print "%s %s" % (bot.clients[network].nick, Settings.cc_channel)
-		# check so it's we that are joining the cc_channel
-		if (nick == bot.clients[network].nick) and (channel == Settings.cc_channel):
+		print "%s %s" % (bot.clients[network].nick, Settings.swarm_channel)
+		# check so it's we that are joining the swarm_channel
+		if (nick == bot.clients[network].nick) and (channel == Settings.swarm_channel):
 			Settings.swarm_voteid = randrange(0,65535)
 			Settings.swarm_random = randrange(0,65535)
 			bot.clients[network].tell(channel,"%svote %d %d" % (bot.settings.trigger, Settings.swarm_voteid, Settings.swarm_random))
@@ -56,8 +56,8 @@ class Landlady(Command):
 		return
 
 	def trig_vote(self, bot, source, target, trigger, argument, network):
-		if target != Settings.cc_channel:
-			print "ERROR: Vote in none cc_channel"
+		if target != Settings.swarm_channel:
+			print "ERROR: Vote in none swarm_channel"
 			return False
 
 		(curr_vote_id, curr_vote) = parse_vote(argument)
@@ -88,11 +88,11 @@ class Landlady(Command):
 	"""
 		Default functions
 	"""
-	def save(self): 
+	def save(self):
 		pass
 
 	def on_load(self):
 		pass
 
-	def on_unload(self): 
+	def on_unload(self):
 		pass

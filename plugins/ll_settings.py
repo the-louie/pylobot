@@ -2,7 +2,8 @@ class landladySettings:
 	# channel for contol
 	cc_channel = '#testdhlandlady'
 
-	# variables for handling 
+	# variables for handling swarms
+	swarm_channel = '#testdhlandlady'
 	swarm_enabled = False
 	swarm_id = 0
 	swarm_random = 0
