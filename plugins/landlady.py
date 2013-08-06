@@ -4,6 +4,7 @@ from commands import Command
 from ll_utils import *
 from utility import extract_nick
 from random import randrange
+import time
 
 class Landlady(Command):
 	def __init__(self):
@@ -65,13 +66,16 @@ class Landlady(Command):
 			print "ERROR: error in vote arguments"
 			return False
 
+
 		# if it's a new vote
 		if curr_vote_id != Settings.swarm_voteid:
-			Settings.swarm_random = randrange(0,65535)
 			Settings.swarm_votes = {}
+			time.sleep(float(randrange(0,50)/10))
+			Settings.swarm_random = randrange(0,65535)
+			while Settings.swarm_random in Settings.swarm_votes.values():
+				Settings.swarm_random = randrange(0,65535)
 			Settings.swarm_votes[bot.clients[network].nick] = swarm_random
 			bot.clients[network].tell(target,"%svote %d %d" % (bot.settings.trigger, int(curr_vote_id), int(Settings.swarm_random)))
-
 
 		Settings.swarm_voteid = curr_vote_id
 		Settings.swarm_votes[source] = curr_vote
