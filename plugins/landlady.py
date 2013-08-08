@@ -35,10 +35,12 @@ class Landlady(Command):
 		# Get a banmask that's unique
 		banmask = create_banmask(bot.clients[network], targetnick)
 
-		# FIXME: add punishfactor
+		# Add punishfactor
+		factor = get_punish_factor(banmask)
+		bantime = bantime * factor
 
 		# Kickban the user
-		kickban(bot, network, banmask)
+		kickban(bot, network, targetnick, banmask, reason, bantime, source, cmd)
 
 		return "%s|%s|%s" % (targetnick,banmask,reason)
 

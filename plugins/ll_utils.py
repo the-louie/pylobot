@@ -23,7 +23,13 @@ def db_connect():
 		print "ERROR: Couldn't open database, %s" % e
 		sys.exit(1)
 
-	# on first run we might have to create the table
+	# on first run we might have to create the banmemory table
+	try:
+		dbcur.execute("CREATE TABLE IF NOT EXISTS landlady_banmem (timestamp INT, network TEXT, targetnick TEXT, targethost TEXT, command TEXT, sourcenick TEXT, duration INT)")
+	except Exception, e:
+		print "ERROR: couln't create table, %s" % e
+
+	# on first run we might have to create the settings table
 	try:
 		dbcur.execute("CREATE TABLE IF NOT EXISTS landlady_config (section TEXT, key TEXT, value TEXT)")
 	except Exception, e:
@@ -64,6 +70,7 @@ def db_connect():
 	for key in Settings.default['kb_settings'].keys():
 		Settings.kb_settings[key] = copy.copy(Settings.default['kb_settings'][key])
 		print "DEBUG: kb_settings, %s = %s" % (key,Settings.default['kb_settings'][key])
+	Settings.kb_settings['ban_timemul'] = Settings.kb_settings['ban_timemul'].split(',')
 
 
 	Settings.swarm = copy.deepcopy(Settings.default['swarm'])
@@ -215,10 +222,31 @@ def create_banmask(client, targetnick):
 
 	return banmask
 
-def kickban(client, targetnick, banmask, reason, duration):
+def get_punish_factor(banmask):
+	Settings.db_cur.execute("SELECT count(*) FROM landlady_banmem WHERE targethost = ? AND network = ", (banmask, network))
+	try:
+		count = int(Settings.db_cur.fetchone()[0])
+	except Exception, e:
+		print "ERROR: Couldn't get ban count: %s"
+		return 1
+
+	if count >= len(Settings.kb_settings['ban_timemul']):
+		count = len(Settings.kb_settings['ban_timemul'])-1
+
+	return Settings.kb_settings['ban_timemul'][count]
+
+
+
+def kickban(bot, network, targetnick, banmask, reason, duration, sourcenick, command):
 	client = bot.clients[network]
 
-	for channel in Settings.kb_channels:
+	# save kb to memory
+	Settings.db_cur.execute("INSERT INTO landlady_banmem (timestamp, network targetnick, targethost, command, sourcenick, duration) VALUES (strftime('%s',?,?,?,?,?,?))", (network, targetnick, banmask, command, sourcenick, duration))
+	(timestamp INT, targetnick TEXT, targethost TEXT, command TEXT, sourcenick TEXT, banlength INT
+	Settings.db_con.commit()
+
+	# kick and ban user in all channels
+	for channel in Settings.kb_settings['child_chans']:
 		client.send('MODE %s +b %s' % (channel, banmask))
 		client.send('KICK %s %s :%s' % (channel, targetnick, reason))
 		bot.add_timer(datetime.timedelta(0, duration), False, client.send, 'MODE %s -b %s' % (channel, banmask))
