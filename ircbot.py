@@ -31,7 +31,7 @@ class PriorityQueue:
 
 	def empty(self):
 		return len(self.internal_array) == 0
-	
+
 	def top(self):
 		return self.internal_array[0]
 
@@ -79,12 +79,13 @@ class IRCBot(AutoReloader):
 
 	def get_callbacks(self):
 		return { "on_connected": self.on_connected, "on_join": self.on_join,
-			 "on_nick_change": self.on_nick_change, "on_notice": self.on_notice, 
-			 "on_part": self.on_part, "on_privmsg": self.on_privmsg, "on_quit": self.on_quit }
+			 "on_nick_change": self.on_nick_change, "on_notice": self.on_notice,
+			 "on_part": self.on_part, "on_privmsg": self.on_privmsg,
+			 "on_mode": self.on_mode, "on_quit": self.on_quit }
 
 	def is_connected(self, network=None):
 		if network == None:
-			raise DeprecationWarning("network parameter missing")			
+			raise DeprecationWarning("network parameter missing")
 		return self.clients['networks'].is_connected()
 
 	def execute_plugins(self, network, trigger, *arguments):
@@ -142,6 +143,9 @@ class IRCBot(AutoReloader):
 	def on_quit(self, network, nick, reason):
 		self.execute_plugins(network, "on_quit", nick, reason)
 
+	def on_mode(self, network, nick, channel, mode, target):
+		self.execute_plugins(network, "on_mode", nick, channel, mode, target)
+
 	def on_reload(self):
 		# Check for new channels, if so join them
 		for network in self.networks:
@@ -174,7 +178,7 @@ class IRCBot(AutoReloader):
 		plugin_handler.plugins_on_unload()
 		plugin_handler.reload_plugin_modules()
 		plugin_handler.plugins_on_load()
-	
+
 	def load_plugin(self, plugin):
 		plugin_handler.load_plugin(plugin)
 

@@ -29,7 +29,7 @@ class Landlady(Command):
 			m = hashlib.md5()
 			m.update(targetnick)
 			hashid = int(m.hexdigest()[0:2],16)
-			if (Settings.swarm.range[0] < hashid) or (Settings.swarm.range[1] >= hashid):
+			if (Settings.swarm['range'][0] < hashid) or (Settings.swarm['range'][1] >= hashid):
 				return False
 
 		# Get a banmask that's unique
@@ -49,17 +49,15 @@ class Landlady(Command):
 		If we join the swarm.channel we need to vote
 	"""
 	def on_join(self, bot, userhost, channel, network, **kwargs):
-		print "ON_JOIN"
 		nick = extract_nick(userhost)
-		print "%s %s" % (nick,channel)
-		print "%s %s" % (bot.clients[network].nick, Settings.swarm['channel'])
+
 		# check so it's we that are joining the swarm_channel
 		if (nick == bot.clients[network].nick) and (channel == Settings.swarm['channel']):
 			Settings.swarm['voteid'] = randrange(0,65535)
 			Settings.swarm['random'] = randrange(0,65535)
 			bot.clients[network].tell(channel,"%svote %d %d" % (bot.settings.trigger, Settings.swarm['voteid'], Settings.swarm['random']))
-			Settings.swarm.votes = {}
-			Settings.swarm.votes[nick] = Settings.swarm['random']
+			Settings.swarm['votes'] = {}
+			Settings.swarm['votes'][nick] = Settings.swarm['random']
 			return
 
 		return
@@ -77,7 +75,7 @@ class Landlady(Command):
 
 		# if it's a new vote
 		if curr_vote_id != Settings.swarm['voteid']:
-			Settings.swarm.votes = {}
+			Settings.swarm['votes'] = {}
 			time.sleep(float(randrange(0,50)/10))
 			Settings.swarm['random'] = randrange(0,65535)
 			while Settings.swarm['random'] in Settings.swarm_votes.values():
@@ -96,6 +94,8 @@ class Landlady(Command):
 
 		return
 
+	def on_mode(self, network, source, channel, mode, target):
+		pass
 
 	"""
 		Default functions

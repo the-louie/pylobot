@@ -18,7 +18,7 @@ class Settings(AutoReloader):                      # these two lines
 	admin_adminnicks = ["CHANGEME"]
 
 	trigger = "."
-	
+
 	recode_out_default_charset = "iso-8859-15"
 	recode_fallback = "iso-8859-15"
 
@@ -30,13 +30,13 @@ class Settings(AutoReloader):                      # these two lines
 	# and uncomment the ones below.
 	#plugins = ['plugins', 'command_catcher', 'commands', 'standard', 'reloader', 'utility',
         #          "options", "admin", "google", "insult", "temperature_nu", "wikipedia",
-	#	   "aduno", "alpha", "char", "code", "compliment", "countdown", 
-	#	   "down", "example_plugin", "favorites", "festern_bbq", "fml", 
-	#	   "food", "game_plugin", "give", "googlefight", "ical_parser", 
-	#	   "icq", "imdb", "isitfriday", "kolli", "lithcourse", "magic8ball", 
-	#	   "mat", "metacritic", "nelson", "nextep", "notes", "pi", 
-	#	   "postnr", "prisjakt", "pylisp", "qotd", "randombuy", 
-	#	   "reminder", "roulette", "rss", "scale", "spotify", "stava", 
-	#	   "systembolaget", "tenta", "timezone", "title_reader", "tv", 
+	#	   "aduno", "alpha", "char", "code", "compliment", "countdown",
+	#	   "down", "example_plugin", "favorites", "festern_bbq", "fml",
+	#	   "food", "game_plugin", "give", "googlefight", "ical_parser",
+	#	   "icq", "imdb", "isitfriday", "kolli", "lithcourse", "magic8ball",
+	#	   "mat", "metacritic", "nelson", "nextep", "notes", "pi",
+	#	   "postnr", "prisjakt", "pylisp", "qotd", "randombuy",
+	#	   "reminder", "roulette", "rss", "scale", "spotify", "stava",
+	#	   "systembolaget", "tenta", "timezone", "title_reader", "tv",
 	#	   "tyda", "yrno"]
 

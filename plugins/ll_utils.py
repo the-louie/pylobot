@@ -3,6 +3,7 @@ from utility import extract_nick
 from ll_settings import landladySettings as Settings
 import sys
 import sqlite3
+import copy
 
 '''
 
@@ -52,7 +53,7 @@ def db_connect():
 			loaded_vals.append(row[0])
 			Settings.default[section][row[0]] = row[1]
 
-		for key in settings[section].keys():
+		for key in Settings.default[section].keys():
 			if key not in loaded_vals:
 				print "INFO: Updating %s with %s=%s" % (section,key,Settings.default[section][key])
 				try:
@@ -64,13 +65,13 @@ def db_connect():
 
 
 	for key in Settings.default['kb_commands'].keys():
-		Settings.kb_commands[key] = (Settings.default['kb_commands'][key].split(' ',2)[1],Settings.default['kb_commands'][key].split(' ',2)[0])
-		print "DEBUG: kb_commands loading %s '%s' -> (%s,%s)." % (key,Settings.default['kb_commands'][key],Settings.default['kb_commands'][key].split(' ',2)[1],Settings.default['kb_commands'][key].split(' ',2)[0])
+		Settings.default['kb_commands'][key] = (Settings.default['kb_commands'][key].split(' ',2)[1],Settings.default['kb_commands'][key].split(' ',2)[0])
+		print "DEBUG: kb_commands loading %s '%s' -> (%s,%s)." % (key,Settings.default['kb_commands'][key],Settings.default['kb_commands'][key][1],Settings.default['kb_commands'][key][0])
 
 	for key in Settings.default['kb_settings'].keys():
-		Settings.kb_settings[key] = copy.copy(Settings.default['kb_settings'][key])
+		Settings.default['kb_settings'][key] = copy.copy(Settings.default['kb_settings'][key])
 		print "DEBUG: kb_settings, %s = %s" % (key,Settings.default['kb_settings'][key])
-	Settings.kb_settings['ban_timemul'] = Settings.kb_settings['ban_timemul'].split(',')
+	Settings.kb_settings['ban_timemul'] = Settings.default['kb_settings']['ban_timemul'].split(',')
 
 
 	Settings.swarm = copy.deepcopy(Settings.default['swarm'])
@@ -242,7 +243,6 @@ def kickban(bot, network, targetnick, banmask, reason, duration, sourcenick, com
 
 	# save kb to memory
 	Settings.db_cur.execute("INSERT INTO landlady_banmem (timestamp, network targetnick, targethost, command, sourcenick, duration) VALUES (strftime('%s',?,?,?,?,?,?))", (network, targetnick, banmask, command, sourcenick, duration))
-	(timestamp INT, targetnick TEXT, targethost TEXT, command TEXT, sourcenick TEXT, banlength INT
 	Settings.db_con.commit()
 
 	# kick and ban user in all channels

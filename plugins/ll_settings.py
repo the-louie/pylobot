@@ -7,20 +7,23 @@ class landladySettings:
 	cc_channel = '#testdhlandlady'
 
 	settings = None
+	kb_settings = {}
+	kb_commands = {}
+	swarm = {}
 
 	default = {
-		swarm: {
-			channel: '#testdhlandlady',
+		'swarm': {
+			'channel': '#testdhlandlady',
 		},
 
-		kb_settings: {
+		'kb_settings': {
 				'master_chan' : '#testdhlandlady',
 				'child_chans' : '#dreamhack #dreamhack.info #dreamhack.trade #dreamhack.crew',
 				'ban_timemul' : '1,2,4,8,72,504',
 				'kick_tagline': 'Please read the rules at http://irc.dhcrew.se',
 		},
 
-		kb_settings: {
+		'kb_commands': {
 				'cmd_evade': 	'3600 Please do not evade bans',
 				'cmd_date': 	'600 Please join #dreamhack.date with all the other silly boys',
 				'cmd_caps': 	'600 ALL CAPS MAKES YOUR EYES SQUARE',

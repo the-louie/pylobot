@@ -44,6 +44,7 @@ class IRCClient(AutoReloader):
 			'PRIVMSG': self.on_privmsg,
 			'NOTICE': self.on_notice,
 			'ERROR': self.on_error,
+			'MODE': self.on_mode,
 			'353': self.on_begin_nick_list,
 			'366': self.on_end_nick_list,
 			'001': self.on_connected,
@@ -92,7 +93,7 @@ class IRCClient(AutoReloader):
 			# FIXME use bot.settings/rebuild settings
 			print line.encode(settings.Settings().recode_fallback, "replace")
 		self.lines.append(line)
-	
+
 	def send(self, line):
 		self.log_line(timestamp() + " " + self.network + " SENT: " + line)
 
@@ -134,7 +135,7 @@ class IRCClient(AutoReloader):
 
 			a = string[0:split]
 			b = string[split:]
-		
+
 			return self.tell(target, a) + self.tell(target, b)
 		else:
 			return self.send("PRIVMSG " + target + " :" + string)
@@ -162,7 +163,7 @@ class IRCClient(AutoReloader):
 			for m in re.findall('([^a-zA-Z\[\]{}]?)(.+?)(\s|$)', nicks):
 				prefix, nick = m[0:2]
 				self.temp_nick_list[nick] = {'prefix':prefix}
-			
+
 	def on_end_nick_list(self, tupels):
 		self.nick_lists[self.temp_nick_list_channel] = self.temp_nick_list
 
@@ -220,6 +221,12 @@ class IRCClient(AutoReloader):
 				nick_list.remove(source_nick)
 				nick_list.append(new_nick)
 
+	def on_mode(self, tupels):
+		source, channel, mode, target = [tupels[2],tupels[4],tupels[5].split(' ',2)[0],tupels[5].split(' ',2)[1]]
+
+		if "on_mode" in self.callbacks:
+			self.callbacks["on_mode"](self.network, source, channel, mode, target)
+
 	def on_userhost(self, tupels):
 		message = tupels[5]
 		userhosts = tupels[5].split(' ')
@@ -232,7 +239,7 @@ class IRCClient(AutoReloader):
 			self.callbacks["on_userhost"]()
 
 	def on_nick_inuse(self, tuples):
-		self.send("NICK " + self.nick + "_" + "".join([random.choice(string.ascii_letters + 
+		self.send("NICK " + self.nick + "_" + "".join([random.choice(string.ascii_letters +
 			  string.digits + ".-") for i in xrange(3)]))
 
 	def on_part(self, tupels):
