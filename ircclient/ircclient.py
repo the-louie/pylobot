@@ -23,9 +23,11 @@ class IRCClient(AutoReloader):
 		self.temp_nick_list = None
 		self.nick_lists = {}
 		self.users_list = {}
+		self.banlists = {}
 		self.isupport = {}
 		self.recv_buf = ''
 		self.callbacks = {}
+		self.throttle_errors = ['too fast, throttled','"host is trying to (re)connect too fast"']
 
 		self.lines = []
 
@@ -51,6 +53,8 @@ class IRCClient(AutoReloader):
 			'433': self.on_nick_inuse,
 			'302': self.on_userhost,
 			'005': self.on_isupport,
+			'367': self.on_banlist,
+			'368': self.on_endofbanlist,
 		}
 
 		self.server_address = address;
@@ -202,7 +206,7 @@ class IRCClient(AutoReloader):
 		if target_nick:
 			for nick_list in self.nick_lists.values():
 				if target_nick in nick_list:
-					nick_list.remove(target_nick)
+					del(nick_list[target_nick])
 
 	def on_nick(self, tupels):
 		source, new_nick = [tupels[1], tupels[4]]
@@ -218,11 +222,15 @@ class IRCClient(AutoReloader):
 
 		for nick_list in self.nick_lists.values():
 			if source_nick in nick_list:
-				nick_list.remove(source_nick)
-				nick_list.append(new_nick)
+				nick_list[new_nick] = nick_list[source_nick]
+				del(nick_list[source_nick])
 
 	def on_mode(self, tupels):
-		source, channel, mode, target = [tupels[2],tupels[4],tupels[5].split(' ',2)[0],tupels[5].split(' ',2)[1]]
+		if len(tupels) == 7:
+			source, channel, mode, target = [tupels[2],tupels[4],tupels[5].split(' ',2)[0],tupels[5].split(' ',2)[1]]
+		elif len(tupels) == 6:
+			source, channel, mode = [tupels[2],tupels[4],tupels[5].split(' ',2)[0]]
+			target = ''
 
 		if "on_mode" in self.callbacks:
 			self.callbacks["on_mode"](self.network, source, channel, mode, target)
@@ -239,8 +247,9 @@ class IRCClient(AutoReloader):
 			self.callbacks["on_userhost"]()
 
 	def on_nick_inuse(self, tuples):
-		self.send("NICK " + self.nick + "_" + "".join([random.choice(string.ascii_letters +
-			  string.digits + ".-") for i in xrange(3)]))
+		newnick = self.nick[:6] + "".join([random.choice(string.ascii_letters + string.digits + ".-") for i in xrange(3)])
+		self.send("NICK " + newnick)
+		self.nick = newnick
 
 	def on_part(self, tupels):
 		source, channel, reason = [tupels[1], tupels[4], tupels[5]]
@@ -250,7 +259,7 @@ class IRCClient(AutoReloader):
 
 		source_nick = self.get_nick(source)
 
-		nick_lists[channel].remove(source_nick)
+		del(nick_lists[channel][source_nick])
 
 		last_channel = True
 		for nick_list in self.nick_lists.values():
@@ -258,7 +267,7 @@ class IRCClient(AutoReloader):
 				last_channel = False
 
 		if last_channel:
-			users_list.remove(source_nick)
+			del(users_list[source_nick])
 
 	def on_quit(self, tupels):
 		source = tupels[1]
@@ -274,7 +283,7 @@ class IRCClient(AutoReloader):
 
 		for nick_list in self.nick_lists.values():
 			if source_nick in nick_list:
-				nick_list.remove(source_nick)
+				del(nick_list[source_nick])
 
 		if source_nick in self.users_list.keys():
 			del self.users_list[source_nick]
@@ -323,11 +332,33 @@ class IRCClient(AutoReloader):
 			isupport[key] = val
 		self.isupport.update(isupport)
 
+		print self.isupport
+
+	def on_banlist(self,tupels):
+		(channel, banmask, banner, timestamp) = tupels[5].split(' ')
+		if channel not in self.banlists:
+			self.banlists[channel] = {}
+		self.banlists[channel][banmask] = (banner, timestamp)
+		#print "** BANLIST %s %s %s ==> %s" % (banmask, banner, timestamp, self.banlists[channel][banmask])
+
+		if "on_banlist" in self.callbacks:
+			self.callbacks["on_banlist"](self.network, channel, banmask, banner, timestamp)
+
+	def on_endofbanlist(self,tupels):
+		channel = tupels[5].split(' ')[0]
+		if channel not in self.banlists:
+			self.banlists[channel] = {}
+		self.banlists[channel]['AGE'] = time.time()
+
+		#print "** END OF BANLIST %s ==> %s" % (channel, self.banlists[channel])
+		if "on_endofbanlist" in self.callbacks:
+			self.callbacks["on_endofbanlist"](self.network, channel)
+
 	def on_error(self, tupels):
 		message = tupels[5]
 		print 'the irc server informs of an error:', message
 
-		if "host is trying to (re)connect too fast" in message:
+		if message in self.throttle_errors:
 			self.idle_for(120)
 
 	def idle_for(self, seconds):

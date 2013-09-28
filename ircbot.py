@@ -101,11 +101,24 @@ class IRCBot(AutoReloader):
 						raise NotImplementedError("Plugin '%s' argument count missmatch, was %s." % (
 								plugin, plugin.__class__.__dict__[trigger].func_code.co_argcount))
 			except:
-				error_handler.output_message("%s %s Plugin '%s' threw exception, exinfo: '%s', traceback: '%s'" % (
-						datetime.datetime.now().strftime("[%H:%M:%S]"), network,
-						plugin, sys.exc_info(), traceback.extract_tb(sys.exc_info()[2])))
+				messages = ['','EXCEPTION:']
+				messages.append("%s %s %s" % (network, plugin, sys.exc_info()))
+				for row in [[tb[0]+':'+str(tb[1])]+[str(z) for z in tb[2:]] for tb in traceback.extract_tb(sys.exc_info()[2])]:
+					messages.append(row)
+				messages.append('')
 
-				if trigger != "timer_beat":
+				for message in messages:
+					error_handler.output_message(message)
+				# error_handler.output_message("*** EXCEPTION ***\n%s %s Plugin '%s' threw exception\nexinfo: '%s'\n" % (
+				# 		datetime.datetime.now().strftime("[%H:%M:%S]"),
+				# 		network,
+				# 		plugin,
+				# 		sys.exc_info()
+
+				# 	))
+				# error_handler.output_message([tb[0]+':'+str(tb[1])+"\n\t"+"\n\t".join([str(z) for z in tb[2:]]) for tb in traceback.extract_tb(sys.exc_info()[2])])
+
+				if False and trigger != "timer_beat":
 					try:
 						self.tell(self.settings.admin_network, self.settings.admin_channel,
 							  "%s %s Plugin '%s' threw exception, exinfo: '%s', traceback: '%s'" % (

@@ -13,12 +13,12 @@ class landladySettings:
 
 	default = {
 		'swarm': {
-			'channel': '#testdhlandlady',
+			'channel': '#testdhlandladyswarm',
 		},
 
 		'kb_settings': {
 				'master_chan' : '#testdhlandlady',
-				'child_chans' : '#dreamhack #dreamhack.info #dreamhack.trade #dreamhack.crew',
+				'child_chans' : '#dreamhack #dreamhack.info #dreamhack.trade #dreamhack.crew #testdhlandladychild',
 				'ban_timemul' : '1,2,4,8,72,504',
 				'kick_tagline': 'Please read the rules at http://irc.dhcrew.se',
 		},
