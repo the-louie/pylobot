@@ -117,7 +117,7 @@ class Landlady(Command):
 			print "ERROR: Vote in none swarm_channel"
 			return False
 
-		(curr_vote_id, curr_vote) = self.Util.parse_vote(argument)
+		(curr_vote_id, curr_vote) = self.Swarm.parse_vote(argument)
 		if (curr_vote_id is None) or (curr_vote is None):
 			print "ERROR: error in vote arguments"
 			return False
@@ -137,7 +137,7 @@ class Landlady(Command):
 
 		self.Swarm.voteid = curr_vote_id
 		self.Swarm.votes[source] = curr_vote
-		self.Swarm.range = self.Util.get_swarm_range()
+		self.Swarm.range = self.Swarm.get_swarm_range()
 
 		return
 
