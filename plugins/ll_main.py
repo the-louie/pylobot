@@ -12,6 +12,7 @@ class Landlady(Command):
 	def __init__(self):
 		self.Util = LLUtils()
 		self.Settings = self.Util.Settings
+		self.Swarm = self.Util.Swarm
 
 		self.banlist_age = {}
 		self.bot = None
@@ -34,9 +35,9 @@ class Landlady(Command):
 
 		result = []
 		if argument.split(' ')[1] == 'swarm':
-			rowresult = "(swarm) enabled: %s" % self.Settings.swarm['enabled']
-			if self.Settings.swarm['enabled']:
-				rowresult += " voteid: %s swarmrange: %s" % (self.Settings.swarm['voteid'], self.Settings.swarm['range'])
+			rowresult = "(swarm) enabled: %s" % self.Swarm.enabled
+			if self.Swarm.enabled:
+				rowresult += " voteid: %s swarmrange: %s" % (self.Swarm.voteid, self.Swarm.range)
 			result.append(rowresult)
 			return result
 
@@ -63,12 +64,12 @@ class Landlady(Command):
 			print "UNKOWN KB: %s,%s,%s,%s,%s." % (source,target,trigger,argument,network)
 			return None
 
-		if self.Settings.swarm['enabled']:
+		if self.Swarm.enabled:
 			m = hashlib.md5()
 			m.update(targetnick)
 			hashid = int(m.hexdigest()[0:2],16)
 			print hashid
-			if (self.Settings.swarm['range'][0] < hashid) or (self.Settings.swarm['range'][1] >= hashid):
+			if (self.Swarm.range[0] < hashid) or (self.Swarm.range[1] >= hashid):
 				return False
 
 		# Get a banmask that's unique
@@ -89,16 +90,18 @@ class Landlady(Command):
 	"""
 	def on_join(self, bot, userhost, channel, network, **kwargs):
 		nick = extract_nick(userhost)
+
+		# get banlist
 		bot.clients[network].send('mode %s +b' % channel)
 
 		# if swarm mode enabled
 		# check so it's we that are joining the swarm_channel
-		if self.Settings.swarm['enabled'] and (nick == bot.clients[network].nick) and (channel == self.Settings.swarm['channel']):
-			self.Settings.swarm['voteid'] = randrange(0,65535)
-			self.Settings.swarm['random'] = randrange(0,65535)
-			bot.clients[network].tell(channel,"%svote %d %d" % (bot.settings.trigger, self.Settings.swarm['voteid'], self.Settings.swarm['random']))
-			self.Settings.swarm['votes'] = {}
-			self.Settings.swarm['votes'][nick] = self.Settings.swarm['random']
+		if self.Swarm.enabled and (nick == bot.clients[network].nick) and (channel == self.Swarm.channel):
+			self.Swarm.voteid = randrange(0,65535)
+			self.Swarm.random = randrange(0,65535)
+			bot.clients[network].tell(channel,"%svote %d %d" % (bot.settings.trigger, self.Swarm.voteid, self.Swarm.random))
+			self.Swarm.votes = {}
+			self.Swarm.votes[nick] = self.Swarm.random
 			return
 
 		return
@@ -107,10 +110,10 @@ class Landlady(Command):
 		Someone else voted, of we haven't voted yet we should
 	"""
 	def trig_vote(self, bot, source, target, trigger, argument, network):
-		if not self.Settings.swarm['enabled']:
+		if not self.Swarm.enabled:
 			return
 
-		if target != self.Settings.swarm['channel']:
+		if target != self.Swarm.channel:
 			print "ERROR: Vote in none swarm_channel"
 			return False
 
@@ -120,23 +123,21 @@ class Landlady(Command):
 			return False
 
 		# if it's a new vote
-		if curr_vote_id != self.Settings.swarm['voteid']:
+		if curr_vote_id != self.Swarm.voteid:
 			print "new vote"
-			self.Settings.swarm['votes'] = {}
+			self.Swarm.votes = {}
 			time.sleep(float(randrange(0,50)/10))
-			self.Settings.swarm['random'] = randrange(0,65535)
-			while self.Settings.swarm['random'] in self.Settings.swarm['votes'].values():
-				self.Settings.swarm['random'] = randrange(0,65535)
-			self.Settings.swarm['votes'][bot.clients[network].nick] = self.Settings.swarm['random']
-			bot.clients[network].tell(target,"%svote %d %d" % (bot.settings.trigger, int(curr_vote_id), int(self.Settings.swarm['random'])))
+			self.Swarm.random = randrange(0,65535)
+			while self.Swarm.random in self.Swarm.votes.values():
+				self.Swarm.random = randrange(0,65535)
+			self.Swarm.votes[bot.clients[network].nick] = self.Swarm.random
+			bot.clients[network].tell(target,"%svote %d %d" % (bot.settings.trigger, int(curr_vote_id), int(self.Swarm.random)))
 		else:
 			print "old vote"
 
-		self.Settings.swarm['voteid'] = curr_vote_id
-		self.Settings.swarm['votes'][source] = curr_vote
-		self.Settings.swarm['range'] = self.Util.get_swarm_range()
-
-		self.Settings.swarm['enabled'] = True
+		self.Swarm.voteid = curr_vote_id
+		self.Swarm.votes[source] = curr_vote
+		self.Swarm.range = self.Util.get_swarm_range()
 
 		return
 

@@ -13,10 +13,23 @@ class Settings():
 		self.general = {}
 		pass
 
+class Swarm():
+	def __init__(self):
+		self.range = (65535,0)
+		self.votes = {}
+		self.enabled = True
+		self.id = 0
+		self.random = 0
+		self.voteid = -1
+
+		pass
+
 class LLUtils():
 	def __init__(self):
-		self.bot = None
 		self.Settings = Settings()
+		self.Swarm = Swarm()
+
+		self.bot = None
 		self.dbcon = None
 		self.dbcur = None
 		self.db_connect()
@@ -96,18 +109,18 @@ class LLUtils():
 		self.Settings.kb_settings['child_chans'] = DefaultSettings.default['kb_settings']['child_chans'].split(' ')
 
 
-		self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
-
+		#self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
+		self.Swarm.channel = DefaultSettings.['swarm']['channel']
 		#
 		# take care of special variables
 		# FIXME: This shouldn't be among settings.
 		#
-		self.Settings.swarm['range'] = (65535,0)
-		self.Settings.swarm['votes'] = {}
-		self.Settings.swarm['enabled'] = True
-		self.Settings.swarm['id'] = 0
-		self.Settings.swarm['random'] = 0
-		self.Settings.swarm['voteid'] = -1
+		# self.Settings.swarm['range'] = (65535,0)
+		# self.Settings.swarm['votes'] = {}
+		# self.Settings.swarm['enabled'] = True
+		# self.Settings.swarm['id'] = 0
+		# self.Settings.swarm['random'] = 0
+		# self.Settings.swarm['voteid'] = -1
 
 
 
@@ -266,7 +279,7 @@ class LLUtils():
 		try:
 			count = int(self.Settings.dbcur.fetchone()[0])
 		except Exception, e:
-			print "ERROR: Couldn't get ban count: %s"
+			print "ERROR: Couldn't get ban count: %s" % e
 			return 1
 
 		if count >= len(self.Settings.kb_settings['ban_timemul']):
@@ -311,7 +324,7 @@ class LLUtils():
 
 	'''
 	def update_swarm_range(self, vote):
-		swarm_range = (min(self.Settings.swarm['range'][0], vote), max(self.Settings.swarm['range'][1], vote))
+		swarm_range = (min(self.Swarm.range[0], vote), max(self.Swarm.range[1], vote))
 
 		return swarm_range
 
@@ -336,10 +349,10 @@ class LLUtils():
 
 
 	def get_swarm_range(self):
-		sorted_swarm_votes = sorted(self.Settings.swarm['votes'].values())
-		print self.Settings.swarm['votes']
-		my_index = sorted_swarm_votes.index(self.Settings.swarm['random'])
-		client_count = len(self.Settings.swarm['votes'])
+		sorted_swarm_votes = sorted(self.Swarm.votes.values())
+		print self.Swarm.votes
+		my_index = sorted_swarm_votes.index(self.Swarm.random)
+		client_count = len(self.Swarm.votes)
 
 		buckets = [0]
 		bucket_size = 256.0/(len(sorted_swarm_votes))
