@@ -25,8 +25,8 @@ class Landlady(Command):
 		Expose some information
 	"""
 	def trig_info(self, bot, source, target, trigger, argument, network):
-		if target != self.Settings.kb_settings['master_chan']:
-			print "ERROR: inforequest from outside %s" % self.Settings.kb_settings['master_chan']
+		if target != self.Settings.kb_settings['command_chan']:
+			print "ERROR: inforequest from outside %s" % self.Settings.kb_settings['command_chan']
 			return
 
 		if argument.split(' ')[0] != bot.clients[network].nick:
@@ -43,7 +43,7 @@ class Landlady(Command):
 
 		if argument.split(' ')[1] == 'ban':
 			for channel in self.Settings.kb_settings['child_chans'].split(' '):
-				print "Checking %s" % channel
+				print "DEBUG: Checking %s" % channel
 				if channel in bot.clients[network].banlists:
 					real_length = len([bot.clients[network].banlists[channel] for r in bot.clients[network].banlists[channel] if r != 'AGE'])
 					virt_length = 'Not implemented'
@@ -55,15 +55,13 @@ class Landlady(Command):
 		Take care of any incoming kick-ban requests
 	"""
 	def trig_kb(self, bot, source, target, trigger, argument, network):
-		print argument,"\n"
-
-		if target != self.Settings.kb_settings['master_chan']:
-			print "ERROR: kb-request from outside %s" % self.Settings.kb_settings['master_chan']
+		if target != self.Settings.kb_settings['command_chan']:
+			print "ERROR: kb-request from outside %s" % self.Settings.kb_settings['command_chan']
 			return False
 
 		(cmd,reason,targetnick,bantime) = self.Util.parse_kb_arguments(argument,source)
 		if not cmd:
-			print "UNKOWN KB: %s,%s,%s,%s,%s." % (source,target,trigger,argument,network)
+			print "ERRPR: Unknown command, %s,%s,%s,%s,%s." % (source,target,trigger,argument,network)
 			return None
 
 		# if self.Swarm.enabled:
@@ -79,11 +77,11 @@ class Landlady(Command):
 
 		# Add punishfactor
 		factor = self.Util.get_punish_factor(banmask, network)
-		bantime = bantime * factor
+		bantime = int(bantime) * int(factor)
 
 		# Kickban the user
-		#self.Util.kickban(bot, network, targetnick, banmask, reason, bantime, source, cmd)
-		print "%s|%s|%s" % (targetnick,banmask,reason)
+		self.Util.kickban(network, targetnick, banmask, reason, bantime, source, cmd)
+		#print "%s|%s|%s" % (targetnick,banmask,reason)
 		return "%s|%s|%s" % (targetnick,banmask,reason)
 
 

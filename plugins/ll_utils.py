@@ -4,6 +4,8 @@ from ll_settings import landladySettings as DefaultSettings
 import sys
 import sqlite3
 import copy
+import time
+import datetime
 
 class Settings():
 	def __init__(self):
@@ -63,7 +65,7 @@ class LLUtils():
 
 		# load the data from the db, and if there's default values missing add them in
 		for section in DefaultSettings.default.keys():
-			print "Loading %s" % section
+			print "INFO: Loading %s" % section
 			try:
 				self.dbcur.execute('SELECT key, value FROM landlady_config WHERE section = ?', [section])
 			except Exception, e:
@@ -134,7 +136,7 @@ class LLUtils():
 				return (None,None,None,None)
 
 		if not cmd in self.Settings.kb_commands:
-			print "Command (%s) not found" % cmd
+			print "ERROR: Command (%s) not found" % cmd
 			return (None,None,None,None)
 
 		try:
@@ -156,7 +158,6 @@ class LLUtils():
 		if len(hostbits) == 4:
 			for bit in hostbits:
 				numeric &= bit.isdigit()
-				print "*",bit, bit.isdigit(), numeric
 				if not numeric:
 					break
 
@@ -177,7 +178,6 @@ class LLUtils():
 	'''
 	def match_banmask(self, client, targetnick, banmask, channel):
 		matches = []
-		print "** testing %s in %s" % (banmask, channel)
 
 		# escape banmask to re
 		banmask = banmask.replace('.','\.')
@@ -202,12 +202,10 @@ class LLUtils():
 				m = re.search(banmask,client.nick_lists[channel][user])
 				#print "\t\t* checking %s (%s) --> %s" % (client.nick_lists[channel][user], banmask, m)
 				if m:
-					print "\t%s -> %s match" % (banmask, user)
 					matches.append(user)
 			except Exception, e:
 				print "ERROR when regexing: %s" % e
 
-		print "\tfound %s matches" % len(matches)
 		return matches
 
 	def create_banmask(self, client, targetnick):
@@ -225,8 +223,6 @@ class LLUtils():
 
 		user = m.group(1)
 		host = m.group(2)
-
-		print "user: %s  host: %s" % (user,host)
 
 		# FIXME: clean up below and remove redundant code
 		# need to add method for numeric ip's also!
@@ -299,7 +295,7 @@ class LLUtils():
 	def get_punish_factor(self, banmask, network):
 		self.dbcur.execute("SELECT count(*) FROM landlady_banmem WHERE targethost = ? AND network = ?", (banmask, network))
 		try:
-			count = int(self.Settings.dbcur.fetchone()[0])
+			count = int(self.dbcur.fetchone()[0])
 		except Exception, e:
 			print "ERROR: Couldn't get ban count: %s" % e
 			return 1
@@ -315,22 +311,43 @@ class LLUtils():
 		client = self.bot.clients[network]
 
 		# save kb to memory
-		self.dbcur.execute("INSERT INTO landlady_banmem (timestamp, network targetnick, targethost, command, sourcenick, duration) VALUES (strftime('%s',?,?,?,?,?,?))", (network, targetnick, banmask, command, sourcenick, duration))
-		self.dbcur.commit()
+		self.dbcur.execute("""INSERT INTO landlady_banmem (
+				timestamp,
+				network,
+				targetnick,
+				targethost,
+				command,
+				sourcenick,
+				duration)
+			VALUES (
+				datetime('now'),?,?,?,?,?,?)""",
+			(network, targetnick, banmask, command, sourcenick, duration)
+		)
+		self.dbcon.commit()
 
 		# kick and ban user in all channels
 		for channel in self.Settings.kb_settings['child_chans']:
 			client.send('MODE %s +b %s' % (channel, banmask))
 			client.send('KICK %s %s :%s' % (channel, targetnick, reason))
-			self.add_to_banlist(self.bot, network, channel, sourcenick, banmask)
-			self.bot.add_timer(datetime.timedelta(0, duration), False, client.send, 'MODE %s -b %s' % (channel, banmask))
-			self.bot.add_timer(datetime.timedelta(0, duration), False, self.remove_from_banlist, self.bot, network, channel, target)
+			self.add_to_banlist(network, channel, sourcenick, banmask)
+			self.bot.add_timer(datetime.timedelta(0, duration), False, self.unban, network, channel, banmask)
+			self.bot.add_timer(datetime.timedelta(0, duration), False, self.remove_from_banlist, network, channel, banmask)
 
-	def add_to_banlist(self, network, channel, source, target):
-		self.bot.clients[network].banlists[channel][banmask] = (sourcenick,time.time())
+	def unban(self, network, channel, banmask):
+		client = self.bot.clients[network]
+		print "DEBUG: Unbanning %s in %s" % (banmask, channel)
+		client.send('MODE %s -b %s' % (channel, banmask))
 
-	def remove_from_banlist(self, network, channel, target):
-		del(self.bot.clients[network].banlists[channel][banmask])
+	def add_to_banlist(self, network, channel, sourcenick, banmask):
+		bl = self.bot.clients[network].banlists
+		if channel in bl:
+			self.bot.clients[network].banlists[channel][banmask] = (sourcenick,time.time())
+
+	def remove_from_banlist(self, network, channel, banmask):
+		bl = self.bot.clients[network].banlists
+		if channel in bl:
+			if banmask in bl[channel]:
+				del(self.bot.clients[network].banlists[channel][banmask])
 
 	def extract_nick(self, host):
 		m = re.search('^:?(.+)!', host)
