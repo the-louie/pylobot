@@ -4,7 +4,7 @@ class landladySettings:
 	db_cur = None
 
 	# channel for contol
-	cc_channel = '#testdhlandlady'
+	cc_channel = '#dreamhack.c&c'
 
 	settings = None
 	kb_settings = {}
@@ -13,13 +13,13 @@ class landladySettings:
 
 	default = {
 		'swarm': {
-			'channel': '#testdhlandladyswarm',
+			'channel': '#dreamhack.swarm',
 		},
 
 		'kb_settings': {
-				'master_chan' : '#testdhlandlady',
-				'child_chans' : '#dreamhack #dreamhack.info #dreamhack.trade #dreamhack.crew #testdhlandladychild',
-				'ban_timemul' : '1,2,4,8,72,504',
+				'master_chan' : '#dreamhack.op2',
+				'child_chans' : '#dreamhack #dreamhack.info #dreamhack.trade #dreamhack.crew',
+				'ban_timemul' : '1,2,4,8,72,504,2016',
 				'kick_tagline': 'Please read the rules at http://irc.dhcrew.se',
 		},
 

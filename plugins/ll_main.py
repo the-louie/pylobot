@@ -2,7 +2,7 @@
 
 from commands import Command
 from ll_utils import LLUtils
-from utility import extract_nick
+#from utility import extract_nick
 from random import randrange
 import hashlib
 import time
@@ -12,7 +12,7 @@ class Landlady(Command):
 	def __init__(self):
 		self.Util = LLUtils()
 		self.Settings = self.Util.Settings
-		self.Swarm = self.Util.Swarm
+		#self.Swarm = self.Util.Swarm
 
 		self.banlist_age = {}
 		self.bot = None
@@ -34,12 +34,12 @@ class Landlady(Command):
 			return
 
 		result = []
-		if argument.split(' ')[1] == 'swarm':
-			rowresult = "(swarm) enabled: %s" % self.Swarm.enabled
-			if self.Swarm.enabled:
-				rowresult += " voteid: %s swarmrange: %s" % (self.Swarm.voteid, self.Swarm.range)
-			result.append(rowresult)
-			return result
+		# if argument.split(' ')[1] == 'swarm':
+		# 	rowresult = "(swarm) enabled: %s" % self.Swarm.enabled
+		# 	if self.Swarm.enabled:
+		# 		rowresult += " voteid: %s swarmrange: %s" % (self.Swarm.voteid, self.Swarm.range)
+		# 	result.append(rowresult)
+		# 	return result
 
 		if argument.split(' ')[1] == 'ban':
 			for channel in self.Settings.kb_settings['child_chans'].split(' '):
@@ -55,6 +55,8 @@ class Landlady(Command):
 		Take care of any incoming kick-ban requests
 	"""
 	def trig_kb(self, bot, source, target, trigger, argument, network):
+		print argument,"\n"
+
 		if target != self.Settings.kb_settings['master_chan']:
 			print "ERROR: kb-request from outside %s" % self.Settings.kb_settings['master_chan']
 			return False
@@ -64,13 +66,13 @@ class Landlady(Command):
 			print "UNKOWN KB: %s,%s,%s,%s,%s." % (source,target,trigger,argument,network)
 			return None
 
-		if self.Swarm.enabled:
-			m = hashlib.md5()
-			m.update(targetnick)
-			hashid = int(m.hexdigest()[0:2],16)
-			print hashid
-			if (self.Swarm.range[0] < hashid) or (self.Swarm.range[1] >= hashid):
-				return False
+		# if self.Swarm.enabled:
+		# 	m = hashlib.md5()
+		# 	m.update(targetnick)
+		# 	hashid = int(m.hexdigest()[0:2],16)
+		# 	print hashid
+		# 	if (self.Swarm.range[0] < hashid) or (self.Swarm.range[1] >= hashid):
+		# 		return False
 
 		# Get a banmask that's unique
 		banmask = self.Util.create_banmask(bot.clients[network], targetnick)
@@ -81,7 +83,7 @@ class Landlady(Command):
 
 		# Kickban the user
 		#self.Util.kickban(bot, network, targetnick, banmask, reason, bantime, source, cmd)
-
+		print "%s|%s|%s" % (targetnick,banmask,reason)
 		return "%s|%s|%s" % (targetnick,banmask,reason)
 
 
@@ -89,20 +91,20 @@ class Landlady(Command):
 		If we join the swarm.channel we need to vote
 	"""
 	def on_join(self, bot, userhost, channel, network, **kwargs):
-		nick = extract_nick(userhost)
+		nick = self.Util.extract_nick(userhost)
 
 		# get banlist
 		bot.clients[network].send('mode %s +b' % channel)
 
 		# if swarm mode enabled
 		# check so it's we that are joining the swarm_channel
-		if self.Swarm.enabled and (nick == bot.clients[network].nick) and (channel == self.Swarm.channel):
-			self.Swarm.voteid = randrange(0,65535)
-			self.Swarm.random = randrange(0,65535)
-			bot.clients[network].tell(channel,"%svote %d %d" % (bot.settings.trigger, self.Swarm.voteid, self.Swarm.random))
-			self.Swarm.votes = {}
-			self.Swarm.votes[nick] = self.Swarm.random
-			return
+		# if self.Swarm.enabled and (nick == bot.clients[network].nick) and (channel == self.Swarm.channel):
+		# 	self.Swarm.voteid = randrange(0,65535)
+		# 	self.Swarm.random = randrange(0,65535)
+		# 	bot.clients[network].tell(channel,"%svote %d %d" % (bot.settings.trigger, self.Swarm.voteid, self.Swarm.random))
+		# 	self.Swarm.votes = {}
+		# 	self.Swarm.votes[nick] = self.Swarm.random
+		# 	return
 
 		return
 
@@ -110,34 +112,34 @@ class Landlady(Command):
 		Someone else voted, of we haven't voted yet we should
 	"""
 	def trig_vote(self, bot, source, target, trigger, argument, network):
-		if not self.Swarm.enabled:
-			return
+		# if not self.Swarm.enabled:
+		# 	return
 
-		if target != self.Swarm.channel:
-			print "ERROR: Vote in none swarm_channel"
-			return False
+		# if target != self.Swarm.channel:
+		# 	print "ERROR: Vote in none swarm_channel"
+		# 	return False
 
-		(curr_vote_id, curr_vote) = self.Swarm.parse_vote(argument)
-		if (curr_vote_id is None) or (curr_vote is None):
-			print "ERROR: error in vote arguments"
-			return False
+		# (curr_vote_id, curr_vote) = self.Swarm.parse_vote(argument)
+		# if (curr_vote_id is None) or (curr_vote is None):
+		# 	print "ERROR: error in vote arguments"
+		# 	return False
 
-		# if it's a new vote
-		if curr_vote_id != self.Swarm.voteid:
-			print "new vote"
-			self.Swarm.votes = {}
-			time.sleep(float(randrange(0,50)/10))
-			self.Swarm.random = randrange(0,65535)
-			while self.Swarm.random in self.Swarm.votes.values():
-				self.Swarm.random = randrange(0,65535)
-			self.Swarm.votes[bot.clients[network].nick] = self.Swarm.random
-			bot.clients[network].tell(target,"%svote %d %d" % (bot.settings.trigger, int(curr_vote_id), int(self.Swarm.random)))
-		else:
-			print "old vote"
+		# # if it's a new vote
+		# if curr_vote_id != self.Swarm.voteid:
+		# 	print "new vote"
+		# 	self.Swarm.votes = {}
+		# 	time.sleep(float(randrange(0,50)/10))
+		# 	self.Swarm.random = randrange(0,65535)
+		# 	while self.Swarm.random in self.Swarm.votes.values():
+		# 		self.Swarm.random = randrange(0,65535)
+		# 	self.Swarm.votes[bot.clients[network].nick] = self.Swarm.random
+		# 	bot.clients[network].tell(target,"%svote %d %d" % (bot.settings.trigger, int(curr_vote_id), int(self.Swarm.random)))
+		# else:
+		# 	print "old vote"
 
-		self.Swarm.voteid = curr_vote_id
-		self.Swarm.votes[source] = curr_vote
-		self.Swarm.range = self.Swarm.get_swarm_range()
+		# self.Swarm.voteid = curr_vote_id
+		# self.Swarm.votes[source] = curr_vote
+		# self.Swarm.range = self.Swarm.get_swarm_range()
 
 		return
 
