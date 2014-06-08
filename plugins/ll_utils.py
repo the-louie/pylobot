@@ -167,7 +167,7 @@ class LLUtils():
 
 
 		#self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
-		self.Swarm.channel = DefaultSettings.['swarm']['channel']
+		self.Swarm.channel = DefaultSettings.default['swarm']['channel']
 
 
 	'''
@@ -181,7 +181,6 @@ class LLUtils():
 
 
 	'''
-
 	def parse_kb_arguments(self, argument, source):
 		cmd = reason = targetnick = bantime = bantime_int = None
 
