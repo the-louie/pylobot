@@ -1,13 +1,3 @@
-#
-#
-#
-#
-# create function for removing bans from channels
-#
-#
-#
-#
-
 from __future__ import with_statement
 import sys
 import socket
@@ -48,6 +38,11 @@ class User():
 		self.nick = new_nick
 
 
+class Ban():
+	def __init__(self, banmask, banner_nick, timestamp):
+		self.banmask = banmask
+		self.banner_nick = banner_nick
+		self.timestamp = timestamp
 
 class Channel():
 	def __init__(self, channel_name):
@@ -65,11 +60,14 @@ class Channel():
 				self.user_list.del(user)
 
 	def add_ban(self, banmask, banner_nick, timestamp):
-		self.ban_list.append({
-				'banmask': banmask,
-				'banner_nick': banner_nick,
-				'timestamp': timestamp
-			})
+		b = Ban(banmask, banner_nick, timestamp)
+		self.ban_list.append(b)
+
+	def remove_ban(self, banmask):
+		for ban in self.ban_list:
+			if ban.banmask == banmask:
+				self.ban_list.del(ban)
+
 
 
 class Network():
@@ -131,6 +129,10 @@ class Network():
 	def channel_add_ban(self, channel_name, banmask, banner_nick, timestamp):
 		c = channel_by_name(channel_name)
 		c.add_ban(banmask, banner_nick, timestamp)
+
+	def channel_remove_ban(self, channel_name, banmask):
+		c = channel_by_name(channel_name)
+		c.remove_ban(banmask)
 
 class IRCClient(AutoReloader):
 	def __init__(self, address, port, nick, username, realname, network, password):

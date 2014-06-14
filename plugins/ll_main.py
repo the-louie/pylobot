@@ -25,7 +25,12 @@ class Landlady(Command):
 	"""
 		Expose some information
 	"""
-	def trig_info(self, bot, source, target, trigger, argument, network):
+	def on_privmsg(self, bot, source, target, message, network, **kwargs):
+		if message.split(' ')[0][4] == '.kb ':
+			argument = message.split(' ')[1]
+			self.trigger_kb(bot, source, target, 'kb', argument, network):
+
+	def trigger_info(self, bot, source, target, trigger, argument, network):
 		if target != self.Settings.kb_settings['command_chan']:
 			print "ERROR: inforequest from outside %s" % self.Settings.kb_settings['command_chan']
 			return
@@ -55,7 +60,7 @@ class Landlady(Command):
 	"""
 		Take care of any incoming kick-ban requests
 	"""
-	def trig_kb(self, bot, source, target, trigger, argument, network):
+	def trigger_kb(self, bot, source, target, trigger, argument, network):
 		if target != self.Settings.kb_settings['command_chan']:
 			print "ERROR: kb-request from outside %s" % self.Settings.kb_settings['command_chan']
 			return False
