@@ -24,6 +24,7 @@ class IRCClient(AutoReloader):
 		self.nick_lists = {}
 		self.users_list = {}
 		self.banlists = {}
+
 		self.isupport = {}
 		self.recv_buf = ''
 		self.callbacks = {}
@@ -32,6 +33,12 @@ class IRCClient(AutoReloader):
 		self.lines = []
 
 		self.s = None
+
+		self.send_last_second = 0
+		self.send_queue_history = [0]
+		self.send_time = 0
+		self.send_queue = []
+		self.flood_protected = False
 
 		self.wait_until = None
 
@@ -55,6 +62,7 @@ class IRCClient(AutoReloader):
 			'005': self.on_isupport,
 			'367': self.on_banlist,
 			'368': self.on_endofbanlist,
+			'352': self.on_whoreply,
 		}
 
 		self.server_address = address;
@@ -99,27 +107,58 @@ class IRCClient(AutoReloader):
 		self.lines.append(line)
 
 	def send(self, line):
-		self.log_line(timestamp() + " " + self.network + " SENT: " + line)
+		self.send_queue.append(line+"\r\n")
+		self.real_send()
 
-		data = line + "\r\n"
+	def real_send(self):
+		#self.log_line(timestamp() + " " + self.network + " SEND: send_queue length %s" % len(self.send_queue))
+		current_second = int(time.time())
 
-		while data:
-			# FIXME use bot.settings/rebuild settings
-			try:
-				sent =  self.s.send(data.encode(settings.Settings().recode_out_default_charset))
-			except UnicodeDecodeError:
-				# String is probably not unicode, print warning and just send it
-				print
-				print "WARNING IRCClient send called with non unicode string, fix this!"
-				print
-				sent = self.s.send(data)
-			except UnicodeEncodeError:
-				# Try fallback coding instead
-				sent =  self.s.send(data.encode(settings.Settings().recode_fallback, "ignore"))
+		if not self.send_queue:
+			#self.log_line(timestamp() + " " + self.network + " SEND: Sendqueue empty")
+			return None
 
-			data = data[sent:]
+		if self.send_last_second != current_second:
+			if len(self.send_queue_history) >= 10:
+				self.send_queue_history.pop(0)
+			self.send_queue_history.append(0)
 
-		return len(line)+2
+		if len(self.send_queue_history) == 0:
+			self.send_queue_history.append(0)
+
+		if self.flood_protected:
+			if time.time() - self.send_time < 10:
+				#self.log_line(timestamp() + " " + self.network + " SEND: too early %s" % (time.time()-self.send_time))
+				return None
+
+
+		if sum(self.send_queue_history) >= 4:
+			self.flood_protected = True
+			self.log_line(timestamp() + " " + self.network + " SEND: flood_protected TRUE %s, current_second %d last_second %d" % (self.send_queue_history, current_second, self.send_last_second))
+			return None
+		else:
+			self.log_line(timestamp() + " " + self.network + " SEND: flood_protected FALSE")
+			self.flood_protected = False
+
+		data = self.send_queue.pop(0)
+		self.log_line(timestamp() + " " + self.network + " SEND: (%d) %s" % (len(self.send_queue), str(data).replace("\r\n","")))
+
+		try:
+			sent =  self.s.send(data.encode(settings.Settings().recode_out_default_charset))
+		except UnicodeDecodeError:
+			# String is probably not unicode, print warning and just send it
+			print
+			print "WARNING IRCClient send called with non unicode string, fix this!"
+			print
+			sent = self.s.send(data)
+		except UnicodeEncodeError:
+			# Try fallback coding instead
+			sent =  self.s.send(data.encode(settings.Settings().recode_fallback, "ignore"))
+
+		self.send_queue_history[-1] += 1
+		self.send_time = time.time()
+		self.send_last_second = int(self.send_time)
+		return len(data)
 
 	def is_connected(self):
 		return self.connected
@@ -171,23 +210,33 @@ class IRCClient(AutoReloader):
 	def on_end_nick_list(self, tupels):
 		self.nick_lists[self.temp_nick_list_channel] = self.temp_nick_list
 
-		tmp_nicklist = []
-		for nick in self.nick_lists[self.temp_nick_list_channel]:
-			if len(tmp_nicklist) <= 5:
-				tmp_nicklist.append(nick)
-			else:
-				self.send('USERHOST ' + ' '.join(tmp_nicklist))
-				tmp_nicklist = []
+		# tmp_nicklist = []
+		# for nick in self.nick_lists[self.temp_nick_list_channel]:
+		# 	if len(tmp_nicklist) <= 5:
+		# 		tmp_nicklist.append(nick)
+		# 	else:
+		# 		self.send('USERHOST ' + ' '.join(tmp_nicklist))
+		# 		tmp_nicklist = []
 
-		if tmp_nicklist is not None:
-			self.send('USERHOST ' + ' '.join(tmp_nicklist))
+		# if tmp_nicklist is not None:
+		# 	self.send('USERHOST ' + ' '.join(tmp_nicklist))
 
-		self.temp_nick_list_channel = None
-		self.temp_nick_list = None
-		tmp_nicklist = None
+		# self.temp_nick_list_channel = None
+		# self.temp_nick_list = None
+		# tmp_nicklist = None
 
 	def on_join(self, tupels):
 		source, channel = [tupels[1], tupels[4]]
+
+		# if we join a channel send a WHO command to get hosts
+		nick = self.get_nick(source)
+		if nick == self.nick:
+			self.send("WHO %s" % channel)
+		else:
+			if channel not in self.nick_lists:
+				self.nick_lists[channel] = {}
+			self.nick_lists[channel][nick] = {'prefix':''}
+			self.users_list[nick] = source
 
 		if "on_join" in self.callbacks:
 			self.callbacks["on_join"](self.network, source, channel)
@@ -200,13 +249,17 @@ class IRCClient(AutoReloader):
 		if m:
 			target_nick = m.group(1)
 
+		if channel in self.nick_lists:
+			if target_nick in self.nick_lists[channel]:
+				del(self.nick_lists[channel][target_nick])
+
+		# if target_nick:
+		# 	for nick_list in self.nick_lists.values():
+		# 		if target_nick in nick_list:
+		# 			del(nick_list[target_nick])
+
 		if "on_kick" in self.callbacks:
 			self.callbacks["on_kick"](self.network, source, channel, target_nick)
-
-		if target_nick:
-			for nick_list in self.nick_lists.values():
-				if target_nick in nick_list:
-					del(nick_list[target_nick])
 
 	def on_nick(self, tupels):
 		source, new_nick = [tupels[1], tupels[4]]
@@ -259,15 +312,18 @@ class IRCClient(AutoReloader):
 
 		source_nick = self.get_nick(source)
 
-		del(nick_lists[channel][source_nick])
+		if channel in self.nick_lists:
+			if source_nick in self.nick_lists[channel]:
+				del(self.nick_lists[channel][source_nick])
 
 		last_channel = True
-		for nick_list in self.nick_lists.values():
-			if source_nick in nick_list:
+		for chan_nick_list in self.nick_lists.values():
+			if source_nick in chan_nick_list:
 				last_channel = False
 
 		if last_channel:
-			del(users_list[source_nick])
+			if source_nick in self.users_list:
+				del(self.users_list[source_nick])
 
 	def on_quit(self, tupels):
 		source = tupels[1]
@@ -361,14 +417,42 @@ class IRCClient(AutoReloader):
 		if message in self.throttle_errors:
 			self.idle_for(120)
 
+	def on_whoreply(self, tupels):
+		reply = tupels[5].split(' ')
+
+		channel = reply[0]
+		user = reply[1]
+		hostname = reply[2]
+		server = reply[3]
+		nick = reply[4]
+		prefix = reply[5].replace('H','')
+
+		self.log_line(timestamp() + " " + self.network + " WHO: %s!%s@%s (%s)" % (nick,user,hostname,prefix))
+
+		if not channel in self.nick_lists:
+			self.nick_lists[channel] = {}
+		self.nick_lists[channel][nick] = {'prefix':prefix}
+		self.users_list[nick] = "%s!%s@%s" % (nick,user,hostname)
+
+		if "on_whoreply" in self.callbacks:
+			self.callbacks["on_whoreply"](self.network)
+
 	def idle_for(self, seconds):
 		self.wait_until = datetime.datetime.now() + datetime.timedelta(0, seconds)
 
 	def tick(self):
-		if self.wait_until and self.wait_until > datetime.datetime.now():
+		now = datetime.datetime.now()
+		if self.wait_until and self.wait_until > now:
+			self.log_line(timestamp() + " " + self.network + " TICK DEFFERED: %s > %s" % (self.wait_until, now))
 			return
 
 		if self.connected:
+			# send data
+			try:
+				self.real_send()
+			except Exception:
+				pass
+
 			try:
 				retn = self.s.recv(1024)
 
@@ -395,6 +479,7 @@ class IRCClient(AutoReloader):
 					self.connected = False
 					print (error_code, error_message)
 		else:
+			self.log_line(timestamp() + " " + self.network + " TICK (not connected): %s > %s" % (self.wait_until, now))
 			try:
 				self.connect(self.server_address, self.server_port)
 			except socket.error, (error_code, error_message):

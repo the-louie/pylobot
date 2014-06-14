@@ -188,30 +188,30 @@ class LLUtils():
 		banmask = banmask.replace('}','\}')
 		banmask = banmask.replace('*','.*')
 
-		for user in client.users_list:
-			if not channel in client.nick_lists.keys():
-				#print "\t unkown channel"
+		if channel not in client.nick_lists:
+			#print "Unkown channel: %s" % channel
+			return []
+
+		for nick in client.nick_lists[channel]:
+			if nick not in client.users_list:
+				#print "* %s not in users_list" % nick
 				continue
-			if not self.extract_nick(user) in client.nick_lists[channel]:
-				#print "\t ignore %s not in %s" % (user, channel)
-				continue
-			if self.extract_nick(user) == targetnick:
-				#print "\t ignored target user (%s)" % targetnick
+			if nick == targetnick:
 				continue
 			try:
-				m = re.search(banmask,client.nick_lists[channel][user])
-				#print "\t\t* checking %s (%s) --> %s" % (client.nick_lists[channel][user], banmask, m)
+				m = re.search(banmask, client.users_list[nick])
 				if m:
-					matches.append(user)
+					matches.append(nick)
 			except Exception, e:
-				print "ERROR when regexing: %s" % e
+				print "ERROR when regexing: %s %s" % (e.__class__.__name__, e)
+				print "\t%s, %s" % (banmask, client.users_list[nick])
 
 		return matches
 
 	def create_banmask(self, client, targetnick):
 		if targetnick not in client.users_list:
 			# FIXME: get correct banmask adhoc
-			print "ERROR: Unknown user :("
+			print "ERROR: Unknown user %s" % targetnick
 			return None
 
 		targethost = client.users_list[targetnick]

@@ -15,6 +15,7 @@ class Landlady(Command):
 		#self.Swarm = self.Util.Swarm
 
 		self.banlist_age = {}
+		self.banlist_timestamp = {}
 		self.bot = None
 
 	def on_connected(self, bot, network, **kwargs):
@@ -74,6 +75,11 @@ class Landlady(Command):
 
 		# Get a banmask that's unique
 		banmask = self.Util.create_banmask(bot.clients[network], targetnick)
+		if not banmask:
+			return "Couldn't find user %s" % (targetnick)
+
+		print "\n"
+		print " *** trig_kb banmask", banmask
 
 		# Add punishfactor
 		factor = self.Util.get_punish_factor(banmask, network)
@@ -82,7 +88,8 @@ class Landlady(Command):
 		# Kickban the user
 		self.Util.kickban(network, targetnick, banmask, reason, bantime, source, cmd)
 		#print "%s|%s|%s" % (targetnick,banmask,reason)
-		return "%s|%s|%s" % (targetnick,banmask,reason)
+		#return "%s|%s|%s" % (targetnick,banmask,reason)
+		return None
 
 
 	"""
@@ -92,7 +99,13 @@ class Landlady(Command):
 		nick = self.Util.extract_nick(userhost)
 
 		# get banlist
-		bot.clients[network].send('mode %s +b' % channel)
+		if channel in self.banlist_timestamp:
+			if time.time() - self.banlist_timestamp[channel] > 60:
+				bot.clients[network].send('mode %s +b' % channel)
+				self.banlist_timestamp[channel] = time.time()
+		else:
+			self.banlist_timestamp[channel] = time.time()
+
 
 		# if swarm mode enabled
 		# check so it's we that are joining the swarm_channel
@@ -146,14 +159,16 @@ class Landlady(Command):
 	"""
 	def on_mode(self, bot, source, channel, mode, target, network):
 		client = self.bot.clients[network]
+		if source == bot.clients[network].nick:
+			return
 
 		if channel in self.Settings.kb_settings['child_chans']:
-			if channel not in self.banlist_age or time.time()-self.banlist_age[channel] > 300:
+			if channel not in self.banlist_timestamp or time.time()-self.banlist_timestamp[channel] > 600:
 				client.banlists[channel] = {}
 				client.send("MODE %s +b" % channel)
 			else:
 				if mode == '+b':
-					self.Util.add_to_banlist(self.bot, network, channel, source, target)
+					self.Util.add_to_banlist(network, channel, source, target)
 
 				elif mode == '-b' and target in client.banlists[channel]:
 					self.Util.remove_from_banlist(self.bot, network, channel, target)
