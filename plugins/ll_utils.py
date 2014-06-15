@@ -146,6 +146,8 @@ class LLUtils():
 			bantime_int = int(bantime)
 		except TypeError:
 			bantime_int = None
+		except ValueError:
+			bantime_int = None
 
 		if not bantime_int:
 			bantime_int = int(self.Settings.kb_commands[cmd][0])
