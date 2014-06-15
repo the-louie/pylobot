@@ -10,6 +10,7 @@ class landladySettings:
 	kb_settings = {}
 	kb_commands = {}
 	swarm = {}
+	swarm_enabled = True
 
 	default = {
 		'swarm': {

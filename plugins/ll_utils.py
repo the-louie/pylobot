@@ -127,12 +127,14 @@ class LLUtils():
 		except ValueError:
 			pass
 		except Exception:
+			print "\n1 %s\n" % argument
 			return (None,None,None,None)
 
 		if not cmd:
 			try:
 				(cmd, targetnick, bantime) = argument.split(' ')
 			except Exception:
+				print "\n2 %s\n" % argument
 				return (None,None,None,None)
 
 		if not cmd in self.Settings.kb_commands:
@@ -147,7 +149,7 @@ class LLUtils():
 		if not bantime_int:
 			bantime_int = int(self.Settings.kb_commands[cmd][0])
 
-		reason = "%s (%d) /%s" % (self.Settings.kb_commands[cmd][1], bantime_int, source)
+		reason = "%s (%d) /%s" % (self.Settings.kb_commands[cmd][1], bantime_int, source.split('!')[0])
 
 		return (cmd,reason,targetnick,bantime_int)
 
@@ -176,7 +178,7 @@ class LLUtils():
 
 
 	'''
-	def match_banmask(self, client, targetnick, banmask, channel):
+	def match_banmask(self, net, targetnick, banmask, channel_name):
 		matches = []
 
 		# escape banmask to re
@@ -188,41 +190,36 @@ class LLUtils():
 		banmask = banmask.replace('}','\}')
 		banmask = banmask.replace('*','.*')
 
-		if channel not in client.nick_lists:
-			#print "Unkown channel: %s" % channel
-			return []
+		try:
+			channel = net.channel_by_name(channel_name)
+		except Exception, e:
+			print "ERROR: %s" % e
+			return 99
 
-		for nick in client.nick_lists[channel]:
-			if nick not in client.users_list:
-				#print "* %s not in users_list" % nick
+		for user in channel.user_list:
+			if user.nick == targetnick:
 				continue
-			if nick == targetnick:
-				continue
+
 			try:
-				m = re.search(banmask, client.users_list[nick])
+				m = re.search(banmask, user.nickuserhost)
 				if m:
-					matches.append(nick)
+					matches.append(user.nick)
 			except Exception, e:
 				print "ERROR when regexing: %s %s" % (e.__class__.__name__, e)
-				print "\t%s, %s" % (banmask, client.users_list[nick])
+				print "\t%s, %s" % (banmask, user.nickuserhost)
 
 		return matches
 
-	def create_banmask(self, client, targetnick):
-		if targetnick not in client.users_list:
+	def create_banmask(self, net, targetnick):
+		try:
+			u = net.user_by_nick(targetnick)
+		except Exception, e:
 			# FIXME: get correct banmask adhoc
-			print "ERROR: Unknown user %s" % targetnick
+			print "ERROR: %s" % e
 			return None
 
-		targethost = client.users_list[targetnick]
-
-		m = re.search('^(.+)@(.+)', targethost)
-		if not m:
-			print "ERROR: regex failed for %s" % targethost
-			return targethost
-
-		user = m.group(1)
-		host = m.group(2)
+		user = u.user
+		host = u.host
 
 		# FIXME: clean up below and remove redundant code
 		# need to add method for numeric ip's also!
@@ -231,14 +228,14 @@ class LLUtils():
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
 				banmask = '*!*@%s.*' % '.'.join(host.split('.')[:-1])
-				hits += len(self.match_banmask(client, targetnick, banmask, channel))
+				hits += len(self.match_banmask(net, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
 				banmask = '*!*%s*@%s.*' % (user, '.'.join(host.split('.')[:-1]))
-				hits += len(self.match_banmask(client, targetnick, banmask, channel))
+				hits += len(self.match_banmask(net, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -253,7 +250,7 @@ class LLUtils():
 					banmask = '*!*@%s' % host
 				else:
 					banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
-				hits += len(self.match_banmask(client, targetnick, banmask, channel))
+				hits += len(self.match_banmask(net, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -264,7 +261,7 @@ class LLUtils():
 					banmask = '*!*%s@%s' % (user,host)
 				else:
 					banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
-				hits += len(self.match_banmask(client, targetnick, banmask, channel))
+				hits += len(self.match_banmask(net, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -275,7 +272,7 @@ class LLUtils():
 					banmask = '*!*@%s' % host
 				else:
 					banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
-				hits += len(self.match_banmask(client, targetnick, banmask, channel))
+				hits += len(self.match_banmask(net, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -283,7 +280,7 @@ class LLUtils():
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
 				banmask = '*!*@%s' % (host)
-				hits += len(self.match_banmask(client, targetnick, banmask, channel))
+				hits += len(self.match_banmask(net, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -307,8 +304,7 @@ class LLUtils():
 
 
 
-	def kickban(self, network, targetnick, banmask, reason, duration, sourcenick, command):
-		client = self.bot.clients[network]
+	def save_kickban(self, network, targetnick, banmask, reason, duration, sourcenick, command):
 
 		# save kb to memory
 		self.dbcur.execute("""INSERT INTO landlady_banmem (
@@ -326,12 +322,12 @@ class LLUtils():
 		self.dbcon.commit()
 
 		# kick and ban user in all channels
-		for channel in self.Settings.kb_settings['child_chans']:
-			client.send('MODE %s +b %s' % (channel, banmask))
-			client.send('KICK %s %s :%s' % (channel, targetnick, reason))
-			self.add_to_banlist(network, channel, sourcenick, banmask)
-			self.bot.add_timer(datetime.timedelta(0, duration), False, self.unban, network, channel, banmask)
-			self.bot.add_timer(datetime.timedelta(0, duration), False, self.remove_from_banlist, network, channel, banmask)
+		# for channel in self.Settings.kb_settings['child_chans']:
+		# 	client.send('MODE %s +b %s' % (channel, banmask))
+		# 	client.send('KICK %s %s :%s' % (channel, targetnick, reason))
+		# 	self.add_to_banlist(network, channel, sourcenick, banmask)
+		# 	self.bot.add_timer(datetime.timedelta(0, duration), False, self.unban, network, channel, banmask)
+		# 	self.bot.add_timer(datetime.timedelta(0, duration), False, self.remove_from_banlist, network, channel, banmask)
 
 	def unban(self, network, channel, banmask):
 		client = self.bot.clients[network]

@@ -7,36 +7,45 @@ from random import randrange
 import hashlib
 import time
 import sqlite3 as sql
+import datetime
 
 class Landlady(Command):
 	def __init__(self):
 		self.Util = LLUtils()
 		self.Settings = self.Util.Settings
 		#self.Swarm = self.Util.Swarm
+		self.bot = None
+		self.net = None
+		self.client = None
 
 		self.banlist_age = {}
 		self.banlist_timestamp = {}
-		self.bot = None
+
 
 	def on_connected(self, bot, network, **kwargs):
+		print "\n"*4,"connected","\n"*4
 		self.bot = bot
 		self.Util.bot = bot
+		self.client = bot.clients[network]
+		self.net = self.client.net
 
 	"""
 		Expose some information
 	"""
 	def on_privmsg(self, bot, source, target, message, network, **kwargs):
-		if message.split(' ')[0][4] == '.kb ':
-			argument = message.split(' ')[1]
-			self.trigger_kb(bot, source, target, 'kb', argument, network):
+		if len(message) < 4:
+			return
+		if message.split(' ')[0][:3] == '.kb':
+			argument = " ".join(message.split(' ')[1:])
+			self.trigger_kb(source, target, argument)
 
-	def trigger_info(self, bot, source, target, trigger, argument, network):
+	def trigger_info(self, net, source, target, trigger, argument):
 		if target != self.Settings.kb_settings['command_chan']:
 			print "ERROR: inforequest from outside %s" % self.Settings.kb_settings['command_chan']
 			return
 
-		if argument.split(' ')[0] != bot.clients[network].nick:
-			print "INFO: inforequest for other bot %s (i'm %s)" % (argument.split(' ')[0],bot.clients[network].nick)
+		if argument.split(' ')[0] != self.net.mynick:
+			print "INFO: inforequest for other bot %s (i'm %s)" % (argument.split(' ')[0],self.net.mynick)
 			return
 
 		result = []
@@ -47,27 +56,28 @@ class Landlady(Command):
 		# 	result.append(rowresult)
 		# 	return result
 
-		if argument.split(' ')[1] == 'ban':
-			for channel in self.Settings.kb_settings['child_chans'].split(' '):
-				print "DEBUG: Checking %s" % channel
-				if channel in bot.clients[network].banlists:
-					real_length = len([bot.clients[network].banlists[channel] for r in bot.clients[network].banlists[channel] if r != 'AGE'])
-					virt_length = 'Not implemented'
-					result.append("(ban %s) real list: %s, virtual list: %s" % (channel,real_length, virt_length))
-			return result
+		# if argument.split(' ')[1] == 'ban':
+		# 	for channel in self.Settings.kb_settings['child_chans'].split(' '):
+		# 		print "DEBUG: Checking %s" % channel
+		# 		if channel in bot.clients[network].banlists:
+		# 			real_length = len([bot.clients[network].banlists[channel] for r in bot.clients[network].banlists[channel] if r != 'AGE'])
+		# 			virt_length = 'Not implemented'
+		# 			result.append("(ban %s) real list: %s, virtual list: %s" % (channel,real_length, virt_length))
+		# 	return result
 
 
 	"""
 		Take care of any incoming kick-ban requests
 	"""
-	def trigger_kb(self, bot, source, target, trigger, argument, network):
-		if target != self.Settings.kb_settings['command_chan']:
+	def trigger_kb(self, trigger_nick, trigger_channel, argument):
+		if trigger_channel != self.Settings.kb_settings['command_chan']:
 			print "ERROR: kb-request from outside %s" % self.Settings.kb_settings['command_chan']
 			return False
 
-		(cmd,reason,targetnick,bantime) = self.Util.parse_kb_arguments(argument,source)
+		(cmd,reason,targetnick,bantime) = self.Util.parse_kb_arguments(argument,trigger_nick)
 		if not cmd:
-			print "ERRPR: Unknown command, %s,%s,%s,%s,%s." % (source,target,trigger,argument,network)
+			print "ERROR: Unknown command, %s,%s,%s." % (trigger_nick,trigger_channel,argument)
+			print "     : Unknown command, %s,%s,%s,%s." % (cmd,reason,targetnick,bantime)
 			return None
 
 		# if self.Swarm.enabled:
@@ -79,7 +89,7 @@ class Landlady(Command):
 		# 		return False
 
 		# Get a banmask that's unique
-		banmask = self.Util.create_banmask(bot.clients[network], targetnick)
+		banmask = self.Util.create_banmask(self.net, targetnick)
 		if not banmask:
 			return "Couldn't find user %s" % (targetnick)
 
@@ -87,11 +97,17 @@ class Landlady(Command):
 		print " *** trig_kb banmask", banmask
 
 		# Add punishfactor
-		factor = self.Util.get_punish_factor(banmask, network)
+		factor = self.Util.get_punish_factor(banmask, self.net.name)
 		bantime = int(bantime) * int(factor)
 
-		# Kickban the user
-		self.Util.kickban(network, targetnick, banmask, reason, bantime, source, cmd)
+		# Kickban the user in all channels
+		for channel in self.Settings.kb_settings['child_chans']:
+			self.client.send('MODE %s +b %s' % (channel, banmask))
+			self.client.send('KICK %s %s :%s' % (channel, targetnick, reason))
+			self.bot.add_timer(datetime.timedelta(0, bantime), False, self.client.send, 'MODE %s -b %s' % (channel, banmask))
+			#self.bot.add_timer(datetime.timedelta(0, duration), False, self.remove_from_banlist, network, channel, banmask)
+
+		self.Util.save_kickban(self.net.name, targetnick, banmask, reason, bantime, trigger_nick, cmd)
 		#print "%s|%s|%s" % (targetnick,banmask,reason)
 		#return "%s|%s|%s" % (targetnick,banmask,reason)
 		return None
@@ -102,15 +118,6 @@ class Landlady(Command):
 	"""
 	def on_join(self, bot, userhost, channel, network, **kwargs):
 		nick = self.Util.extract_nick(userhost)
-
-		# get banlist
-		if channel in self.banlist_timestamp:
-			if time.time() - self.banlist_timestamp[channel] > 60:
-				bot.clients[network].send('mode %s +b' % channel)
-				self.banlist_timestamp[channel] = time.time()
-		else:
-			self.banlist_timestamp[channel] = time.time()
-
 
 		# if swarm mode enabled
 		# check so it's we that are joining the swarm_channel
@@ -158,26 +165,6 @@ class Landlady(Command):
 		# self.Swarm.range = self.Swarm.get_swarm_range()
 
 		return
-
-	"""
-		take care of others bans
-	"""
-	def on_mode(self, bot, source, channel, mode, target, network):
-		client = self.bot.clients[network]
-		if source == bot.clients[network].nick:
-			return
-
-		if channel in self.Settings.kb_settings['child_chans']:
-			if channel not in self.banlist_timestamp or time.time()-self.banlist_timestamp[channel] > 600:
-				client.banlists[channel] = {}
-				client.send("MODE %s +b" % channel)
-			else:
-				if mode == '+b':
-					self.Util.add_to_banlist(network, channel, source, target)
-
-				elif mode == '-b' and target in client.banlists[channel]:
-					self.Util.remove_from_banlist(self.bot, network, channel, target)
-
 
 	"""
 		Default functions
