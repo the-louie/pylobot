@@ -146,7 +146,10 @@ class Network():
 			pass
 
 	def user_change_nick(self, source_nick, new_nick):
-		u = self.user_by_nick(source_nick)
+		try:
+			u = self.user_by_nick(source_nick)
+		except Exception:
+			return
 		u.change_nick(new_nick)
 
 	def channel_add_ban(self, channel_name, banmask, banner_nick, timestamp):
@@ -292,10 +295,10 @@ class IRCClient(AutoReloader):
 
 		if sum(self.send_queue_history) >= 4:
 			self.flood_protected = True
-			self.log_line(timestamp() + " " + self.network + " SEND: flood_protected TRUE %s, current_second %d last_second %d" % (self.send_queue_history, current_second, self.send_last_second))
+			#self.log_line(timestamp() + " " + self.network + " SEND: flood_protected TRUE %s, current_second %d last_second %d" % (self.send_queue_history, current_second, self.send_last_second))
 			return None
 		else:
-			self.log_line(timestamp() + " " + self.network + " SEND: flood_protected FALSE")
+			#self.log_line(timestamp() + " " + self.network + " SEND: flood_protected FALSE")
 			self.flood_protected = False
 
 		data = self.send_queue.pop(0)
@@ -374,7 +377,7 @@ class IRCClient(AutoReloader):
 		pass
 
 	def on_join(self, tupels):
-		source, channel = [tupels[1], tupels[4]]
+		source, channel = [tupels[1].replace(':',''), tupels[4]]
 
 		# if we join a channel send a WHO command to get hosts
 		nick = self.get_nick(source)

@@ -104,7 +104,8 @@ class LLUtils():
 		self.Settings.kb_settings['child_chans'] = DefaultSettings.default['kb_settings']['child_chans'].split(' ')
 
 
-		#self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
+		self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
+		self.Settings.swarm_enabled = copy.deepcopy(DefaultSettings.swarm_enabled)
 		#self.Swarm.channel = DefaultSettings.default['swarm']['channel']
 
 
@@ -211,6 +212,7 @@ class LLUtils():
 		return matches
 
 	def create_banmask(self, net, targetnick):
+		print "create_banmask(net, %s)" % targetnick
 		try:
 			u = net.user_by_nick(targetnick)
 		except Exception, e:
