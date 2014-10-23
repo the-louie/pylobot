@@ -130,12 +130,6 @@ class IRCBot(AutoReloader):
 								sys.exc_info(), traceback.extract_tb(sys.exc_info()[2])))
 
 	def on_connected(self, network):
-		for channel in self.settings.networks[network]['channels']:
-			try:
-				self.join(network, channel[0], channel[1])
-			except IndexError:
-				self.join(network, channel[0])
-
 		self.execute_plugins(network, "on_connected")
 
 	def on_join(self, network, nick, channel):
