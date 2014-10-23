@@ -12,11 +12,11 @@ class AutoJoin(Command):
 
 	def join_all_channels(self, network):
 		if self.bot.settings.deferred_join:
-			self.add_timer(datetime.timedelta(seconds=10), False, self.join_all_channels, network)
+			self.bot.add_timer(datetime.timedelta(seconds=10), False, self.join_all_channels, network)
 			return
 
 		for channel in self.bot.settings.networks[network]['channels']:
 			if len(channel) == 2:
-				self.join(network, channel[0], channel[1])
-			else if len(channel) == 1:
-				self.join(network, channel[0])
+				self.bot.join(network, channel[0], channel[1])
+			elif len(channel) == 1:
+				self.bot.join(network, channel[0])

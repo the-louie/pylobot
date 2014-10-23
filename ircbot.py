@@ -81,7 +81,7 @@ class IRCBot(AutoReloader):
 		return { "on_connected": self.on_connected, "on_join": self.on_join,
 			 "on_nick_change": self.on_nick_change, "on_notice": self.on_notice,
 			 "on_part": self.on_part, "on_privmsg": self.on_privmsg,
-			 "on_mode": self.on_mode, "on_quit": self.on_quit }
+			 "on_mode": self.on_mode, "on_quit": self.on_quit, "debug_info": self.debug_info }
 
 	def is_connected(self, network=None):
 		if network == None:
@@ -152,6 +152,22 @@ class IRCBot(AutoReloader):
 
 	def on_mode(self, network, nick, channel, mode, target):
 		self.execute_plugins(network, "on_mode", nick, channel, mode, target)
+
+	def debug_info(self, *argv):
+
+		for network in self.settings.networks.keys():
+			if network in self.networks:
+				client = self.clients[network]
+				print "(net) name: %s" % client.net.name
+				print "(net) nick: %s" % client.net.mynick
+				print "(net) channels: %d" % len(client.net.all_channels)
+				print "(net) known users: %d" % len(client.net.all_users)
+
+				for channel in client.net.all_channels:
+					print "(%s) users: %d" % (channel.name, len(channel.user_list))
+					print "(%s) bans: %d" % (channel.name, len(channel.ban_list))
+
+		self.execute_plugins(None, "debug_info");
 
 	def on_reload(self):
 		# Check for new channels, if so join them

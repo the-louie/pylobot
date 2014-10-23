@@ -49,6 +49,15 @@ class Landlady(Command):
 			argument = " ".join(message.split(' ')[1:])
 			self.trigger_kb(source, target, argument)
 
+	def debug_info(self, network):
+		print "(swarm) enabled: %s" % self.Swarm.enabled
+		if self.Swarm.enabled:
+			print "(swarm) voteid: %s swarmrange: %s" % (self.Swarm.voteid, self.Swarm.range)
+			print "(swarm) channel: %s" % (self.Swarm.channel)
+			print "(swarm) votes: %s" % (self.Swarm.votes)
+
+
+
 	def trigger_info(self, net, source, target, trigger, argument):
 		if target != self.Settings.kb_settings['command_chan']:
 			print "ERROR: inforequest from outside %s" % self.Settings.kb_settings['command_chan']
