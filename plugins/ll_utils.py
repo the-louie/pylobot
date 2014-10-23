@@ -214,7 +214,7 @@ class LLUtils():
 		return matches
 
 	def create_banmask(self, net, targetnick):
-		print "create_banmask(net, %s)" % targetnick
+		#print "create_banmask(net, %s)" % targetnick
 		try:
 			u = net.user_by_nick(targetnick)
 		except Exception, e:
@@ -231,14 +231,14 @@ class LLUtils():
 		if self.is_numeric(host):
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
-				banmask = '*!*@%s.*' % '.'.join(host.split('.')[:-1])
+				banmask = '*!*@%s' % '.'.join(host.split('.'))
 				hits += len(self.match_banmask(net, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
-				banmask = '*!*%s*@%s.*' % (user, '.'.join(host.split('.')[:-1]))
+				banmask = '*!*%s*@%s' % (user, '.'.join(host.split('.')))
 				hits += len(self.match_banmask(net, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
@@ -309,7 +309,7 @@ class LLUtils():
 
 
 	def save_kickban(self, network, targetnick, banmask, reason, duration, sourcenick, command):
-
+		#print "save_kickban(self, %s, %s, %s, %s, %s, %s, %s)" % (network, targetnick, banmask,reason, duration, sourcenick,command)
 		# save kb to memory
 		self.dbcur.execute("""INSERT INTO landlady_banmem (
 				timestamp,
@@ -333,10 +333,44 @@ class LLUtils():
 		# 	self.bot.add_timer(datetime.timedelta(0, duration), False, self.unban, network, channel, banmask)
 		# 	self.bot.add_timer(datetime.timedelta(0, duration), False, self.remove_from_banlist, network, channel, banmask)
 
+	def purge_kickbans(self):
+		#print "PURGING OLD BANS"
+		result = self.dbcur.execute("""SELECT targethost FROM
+				landlady_banmem
+			WHERE
+				datetime(timestamp, '+'||duration||' seconds') < datetime('now');
+			""")
+
+		unbanlist = []
+		for row in result:
+			unbanlist.append(row[0])
+
+		for channel in self.Settings.kb_settings['child_chans']:
+			c = self.client.net.channel_by_name(channel)
+			for banmask in unbanlist:
+				if c.is_banned(banmask):
+					#print "\t%s: %s" % (channel, banmask)
+					c.remove_ban(banmask)
+					self.unban(self.client.net.name, channel, banmask)
+				th = (banmask,)
+				self.dbcur.execute("DELETE FROM landlady_banmem WHERE targethost LIKE ?", th)
+
+			self.dbcon.commit()
+
+
+
+	def announce_kickban(self, targetnick, banmask, reason, bantime, trigger_nick, cmd):
+		result = []
+		result.append(base64.b64encode(str(targetnick)))
+		result.append(base64.b64encode(str(banmask)))
+		result.append(base64.b64encode(str(bantime)))
+		result.append(base64.b64encode(str(trigger_nick)))
+		result.append(base64.b64encode(str(cmd)))
+		self.client.tell(self.Settings.swarm['channel'], '.banned '+" ".join(result))
+
 	def unban(self, network, channel, banmask):
-		client = self.bot.clients[network]
-		print "DEBUG: Unbanning %s in %s" % (banmask, channel)
-		client.send('MODE %s -b %s' % (channel, banmask))
+		#print "DEBUG: Unbanning %s in %s" % (banmask, channel)
+		self.client.send('MODE %s -b %s' % (channel, banmask))
 
 	def add_to_banlist(self, network, channel, sourcenick, banmask):
 		bl = self.bot.clients[network].banlists

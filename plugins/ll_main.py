@@ -8,12 +8,13 @@ import hashlib
 import time
 import sqlite3 as sql
 import datetime
+import base64
 
 class Landlady(Command):
 	def __init__(self):
 		self.Util = LLUtils()
 		self.Settings = self.Util.Settings
-		#self.Swarm = self.Util.Swarm
+		self.Swarm = self.Util.Swarm
 		self.bot = None
 		self.net = None
 		self.client = None
@@ -28,9 +29,15 @@ class Landlady(Command):
 
 	def on_connected(self, bot, network, **kwargs):
 		self.bot = bot
-		self.Util.bot = bot
 		self.client = bot.clients[network]
 		self.net = self.client.net
+
+		self.Util.bot = bot
+		self.Util.client = self.client
+
+		delay = float(randrange(6000, 12000)/10)
+		self.bot.add_timer(datetime.timedelta(0, delay), False, self.check_old_bans)
+
 
 	"""
 		Expose some information
@@ -169,6 +176,11 @@ class Landlady(Command):
 		self.Swarm.range = self.Swarm.get_swarm_range()
 
 		return
+
+	def check_old_bans(self):
+		self.Util.purge_kickbans()
+		delay = float(randrange(6000, 12000)/10)
+		self.bot.add_timer(datetime.timedelta(0, delay), False, self.check_old_bans)
 
 	"""
 		Default functions
