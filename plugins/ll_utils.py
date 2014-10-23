@@ -6,23 +6,22 @@ import sqlite3
 import copy
 import time
 import datetime
+import base64
 
 class Settings():
 	def __init__(self):
 		self.kb_commands = {}
 		self.kb_settings = {}
-		#self.swarm = {}
+		self.swarm = {}
 		self.general = {}
-		pass
-
-
 
 class LLUtils():
 	def __init__(self):
 		self.Settings = Settings()
-		#self.Swarm = Swarm()
+		self.Swarm = Swarm()
 
 		self.bot = None
+		self.client = None
 		self.dbcon = None
 		self.dbcur = None
 		self.db_connect()
@@ -106,7 +105,7 @@ class LLUtils():
 
 		self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
 		self.Settings.swarm_enabled = copy.deepcopy(DefaultSettings.swarm_enabled)
-		#self.Swarm.channel = DefaultSettings.default['swarm']['channel']
+		self.Swarm.channel = DefaultSettings.default['swarm']['channel']
 
 
 	'''
@@ -128,14 +127,14 @@ class LLUtils():
 		except ValueError:
 			pass
 		except Exception:
-			print "\n1 %s\n" % argument
+			#print "\n1 %s\n" % argument
 			return (None,None,None,None)
 
 		if not cmd:
 			try:
 				(cmd, targetnick, bantime) = argument.split(' ')
 			except Exception:
-				print "\n2 %s\n" % argument
+				#print "\n2 %s\n" % argument
 				return (None,None,None,None)
 
 		if not cmd in self.Settings.kb_commands:

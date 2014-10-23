@@ -47,7 +47,7 @@ class Swarm():
 
 	def get_swarm_range(self):
 		sorted_swarm_votes = sorted(self.votes.values())
-		print self.votes
+		#print self.votes
 		my_index = sorted_swarm_votes.index(self.random)
 		client_count = len(self.votes)
 
