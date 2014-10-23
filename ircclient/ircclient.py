@@ -74,6 +74,12 @@ class Channel():
 			if ban.banmask == banmask:
 				self.ban_list.remove(ban)
 
+	def is_banned(self, banmask):
+		for ban in self.ban_list:
+			if ban.banmask == banmask:
+				return True
+		return False
+
 
 
 class Network():
@@ -551,8 +557,6 @@ class IRCClient(AutoReloader):
 
 			isupport[key] = val
 		self.isupport.update(isupport)
-
-		print self.isupport
 
 	def on_banlist(self,tupels):
 		(channel, banmask, banner, timestamp) = tupels[5].split(' ')
