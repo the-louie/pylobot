@@ -53,6 +53,7 @@ class Landlady(Command):
 		print "(swarm) enabled: %s" % self.Swarm.enabled
 		if self.Swarm.enabled:
 			print "(swarm) voteid: %s swarmrange: %s" % (self.Swarm.voteid, self.Swarm.range)
+			print "(swarm) have_voted: %s" % (self.Swarm.have_voted)
 			print "(swarm) channel: %s" % (self.Swarm.channel)
 			print "(swarm) votes: %s" % (self.Swarm.votes)
 

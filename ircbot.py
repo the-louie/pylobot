@@ -166,6 +166,11 @@ class IRCBot(AutoReloader):
 				for channel in client.net.all_channels:
 					print "(%s) users: %d" % (channel.name, len(channel.user_list))
 					print "(%s) bans: %d" % (channel.name, len(channel.ban_list))
+					for ban in channel.ban_list:
+						print "(%s)\t * %s (%s @%s)" % (channel, ban.banmask, ban.banner_nick, ban.timestamp)
+
+
+
 
 		self.execute_plugins(None, "debug_info");
 
