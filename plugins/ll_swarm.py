@@ -18,6 +18,7 @@ class Swarm():
 		self.random = 0
 		self.voteid = -1
 		self.channel = "#dreamhack.swarm"
+		self.have_voted = False
 
 	def update_swarm_range(self, vote):
 		swarm_range = (min(self.range[0], vote), max(self.range[1], vote))

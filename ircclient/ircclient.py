@@ -585,6 +585,8 @@ class IRCClient(AutoReloader):
 
 		if message in self.throttle_errors:
 			self.idle_for(120)
+		else:
+			raise "SERVER ERROR, %s" % message
 
 	def on_whoreply(self, tupels):
 		reply = tupels[5].split(' ')
