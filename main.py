@@ -56,6 +56,8 @@ def Tick():
 					cli_string += c
 				else:
 					print ""
+					if cli_string == "":
+						cli_string = "debug_info"
 					command = cli_string.split(' ')[0]
 					params = cli_string.split(' ')[1:]
 					if command in bot.callbacks:
