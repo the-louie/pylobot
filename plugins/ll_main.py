@@ -53,7 +53,8 @@ class Landlady(Command):
 		print "(swarm) enabled: %s" % self.Swarm.enabled
 		if self.Swarm.enabled:
 			print "(swarm) voteid: %s swarmrange: %s" % (self.Swarm.voteid, self.Swarm.range)
-			print "(swarm) have_voted: %s" % (self.Swarm.have_voted)
+			print "(swarm) last vote time: %s s ago" % (time.time() - self.Swarm.last_vote_time)
+			print "(swarm) posponed count: %s" % (self.Swarm.posponed_vote_count)
 			print "(swarm) channel: %s" % (self.Swarm.channel)
 			print "(swarm) votes: %s" % (self.Swarm.votes)
 
@@ -144,28 +145,68 @@ class Landlady(Command):
 
 		# if swarm mode enabled
 		# check so it's we that are joining the swarm channel
+		print "on_join(self, bot, %s, %s, %s, **kwargs)" % (userhost, channel, network)
+		print "self.net.mynick = %s" % self.net.mynick
+		print "nick = %s" % nick
+		print "channel = %s" % channel
+		print "swarm channel = %s" % self.Swarm.channel
+		print "swarm enabled %s" % self.Settings.swarm_enabled
 		if self.Settings.swarm_enabled and (nick == self.net.mynick) and (channel == self.Swarm.channel):
-			self.new_vote(channel)
+			self.bot.add_timer(datetime.timedelta(0, randrange(2,20)), False, self.force_revote) # vote in a couple of secs
+
 		return
 
-	def new_vote(self, channel):
-		# BUG: if the timer to the initial vote took too long and we see another vote
-		# before we risk ending up in a cyclic voting for ever.
 
-
-		self.Swarm.voteid = randrange(0,65535)
-		self.Swarm.random = randrange(0,65535)
-		self.client.tell(channel,"%svote %d %d" % (self.bot.settings.trigger, self.Swarm.voteid, self.Swarm.random))
-		self.Swarm.have_voted = True
+	# wrapper for send_vote to force a new vote
+	# to be used with timer
+	def force_revote(self):
+		self.Swarm.unvoted_id = randrange(0,65535)
 		self.Swarm.votes = {}
+		self.send_vote()
+
+
+	# send vote
+	def send_vote(self):
+		if self.Swarm.unvoted_id == None:
+			print "*** No unvoted id to vote on ***"
+			# vote again in a while
+			wait_delta = float(randrange(100))/10
+			self.bot.add_timer(datetime.timedelta(0, randrange(300,900)+wait_delta), False, self.force_revote)
+			return
+
+
+		last_vote_delta_time = time.time() - self.Swarm.last_vote_time
+		if last_vote_delta_time < 120: # make sure we didn't vote just
+			print "last_vote_delta_time < 120 (%d)" % last_vote_delta_time
+			print "posponed_vote_count %d" % self.Swarm.posponed_vote_count
+			self.Swarm.posponed_vote_count += 1
+			if self.Swarm.posponed_vote_count <= 5: # if we havn't posponed votes 5 times try agin in a while
+				min_wait = int(120-last_vote_delta_time)
+				wait_time = float(randrange(min_wait*10,1200))/10
+				print "self.Swarm.posponed_vote_count <= 5, waiting for %s sec" % wait_time
+				self.bot.add_timer(datetime.timedelta(0, wait_time), False, self.send_vote)
+			else: # avoid trying too hard, let us revote in a while instead
+				wait_time = randrange(300,900)
+				self.posponed_vote_count = 0
+				print "self.Swarm.posponed_vote_count > 5, waiting for %s sec" % wait_time
+				self.bot.add_timer(datetime.timedelta(0, wait_time), False, self.send_vote)
+
+			return
+
+
+
+		self.Swarm.voteid = self.Swarm.unvoted_id
+		self.Swarm.random = randrange(0,65535)
 		self.Swarm.votes[self.net.mynick] = self.Swarm.random
-
+		self.Swarm.pending_vote = True
+		self.Swarm.last_vote_time = time.time()
 		self.Swarm.range = self.Swarm.get_swarm_range()
-		if self.Swarm.range[1] == 255:
-			self.Swarm.range = (self.Swarm.range[0], 256)
+		self.client.tell(self.Swarm.channel,"%svote %d %d" % (self.bot.settings.trigger, self.Swarm.voteid, self.Swarm.random))
+		self.Swarm.unvoted_id = None
 
-		# vote again in a while
-		self.bot.add_timer(datetime.timedelta(0, randrange(300,900)), False, self.new_vote, channel)
+		wait_delta = float(randrange(100))/10
+		self.bot.add_timer(datetime.timedelta(0, randrange(300,900)+wait_delta), False, self.force_revote)
+
 
 		return
 
@@ -194,45 +235,19 @@ class Landlady(Command):
 			print "ERROR: Swarm vote in none swarm channel (%s)" % target
 			return False
 
-		(curr_vote_id, curr_vote) = self.Swarm.parse_vote(argument)
-		if (curr_vote_id is None) or (curr_vote is None):
+		(incoming_vote_id, incoming_vote) = self.Swarm.parse_vote(argument)
+		if (incoming_vote_id is None) or (incoming_vote is None):
 			print "ERROR: error in vote arguments"
 			return False
 
-		# if it's a new vote
-		if curr_vote_id != self.Swarm.voteid:
-			self.Swarm.have_voted = False
-			self.Swarm.votes = {}
-			delay = float(randrange(50,150))/100
-			self.Swarm.voteid = curr_vote_id
-			#print "new vote, waiting %s sec" % delay
-
-			self.bot.add_timer(datetime.timedelta(0, delay), False, self.reply_vote, curr_vote_id)
-		else:
-			#print "old vote"
+		if incoming_vote_id != self.Swarm.voteid: # new vote, we need to vote
+			self.Swarm.unvoted_id = incoming_vote_id
+			print "overwriting unvoted_id with %s" % incoming_vote_id
+			self.bot.add_timer(datetime.timedelta(0, float(randrange(50,150))/100), False, self.send_vote)
+		else: # we already voted on this
 			pass
 
-		self.Swarm.votes[source] = curr_vote
-		if self.Swarm.have_voted:
-			self.Swarm.range = self.Swarm.get_swarm_range()
-			if self.Swarm.range[1] == 255:
-				self.Swarm.range = (self.Swarm.range[0], 256)
-
-
 		return
-
-	def reply_vote(self, curr_vote_id):
-		self.Swarm.random = randrange(0,65535)
-		while self.Swarm.random in self.Swarm.votes.values():
-			self.Swarm.random = randrange(0,65535)
-		self.Swarm.votes[self.client.nick] = self.Swarm.random
-		self.client.tell(self.Swarm.channel,"%svote %d %d" % (self.bot.settings.trigger, int(curr_vote_id), int(self.Swarm.random)))
-		self.Swarm.have_voted = True
-		self.Swarm.range = self.Swarm.get_swarm_range()
-		if self.Swarm.range[1] == 255:
-			self.Swarm.range = (self.Swarm.range[0], 256)
-
-
 
 
 	def trig_banned(self, bot, source, target, trigger, argument, network):

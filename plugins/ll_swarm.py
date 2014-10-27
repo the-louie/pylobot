@@ -16,9 +16,11 @@ class Swarm():
 		self.enabled = True
 		self.id = 0
 		self.random = 0
-		self.voteid = -1
+		self.voteid = None
+		self.unvoted_id = None
 		self.channel = "#dreamhack.swarm"
-		self.have_voted = False
+		self.last_vote_time = 0
+		self.posponed_vote_count = 0
 
 	def update_swarm_range(self, vote):
 		swarm_range = (min(self.range[0], vote), max(self.range[1], vote))
@@ -61,6 +63,9 @@ class Swarm():
 
 		buckets.append(255)
 		swarm_range = (buckets[my_index],buckets[my_index+1])
+
+		if swarm_range[1] == 255:
+			swarm_range = (swarm_range[0], 256)
 
 		return swarm_range
 
