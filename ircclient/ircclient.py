@@ -185,8 +185,16 @@ class IRCClient(AutoReloader):
 
 		self.s = None
 
+
+		self.nick = nick[random.randrange(0,len(nick)-1)]
+		self.username = username or self.nick
+		self.realname = realname
+		self.network = network
+		self.password = password
+
+
 		self.net = Network(network)
-		self.net.mynick = nick
+		self.net.mynick = self.nick
 
 		self.send_last_second = 0
 		self.send_queue_history = [0]
@@ -224,11 +232,7 @@ class IRCClient(AutoReloader):
 		self.server_address = address;
 		self.server_port = port;
 
-		self.nick = nick
-		self.username = username
-		self.realname = realname
-		self.network = network
-		self.password = password
+
 
 	def __execute_command_queue(self):
 		if len(self.command_queue) > 0:
@@ -466,7 +470,7 @@ class IRCClient(AutoReloader):
 			self.callbacks["on_userhost"]()
 
 	def on_nick_inuse(self, tuples):
-		newnick = self.nick[:6] + "".join([random.choice(string.ascii_letters + string.digits + ".-") for i in xrange(3)])
+		newnick = self.nick[:6] + "".join([random.choice(string.ascii_letters + string.digits + "-") for i in xrange(3)])
 		self.send("NICK " + newnick)
 		self.nick = newnick
 		self.net.mynick = newnick
