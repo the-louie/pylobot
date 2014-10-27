@@ -167,7 +167,7 @@ class IRCBot(AutoReloader):
 					print "(%s) users: %d" % (channel.name, len(channel.user_list))
 					print "(%s) bans: %d" % (channel.name, len(channel.ban_list))
 					for ban in channel.ban_list:
-						print "(%s)\t * %s (%s @%s)" % (channel, ban.banmask, ban.banner_nick, ban.timestamp)
+						print "(%s)\t * %s (%s @%s)" % (channel.name, ban.banmask, ban.banner_nick, ban.timestamp)
 
 
 
