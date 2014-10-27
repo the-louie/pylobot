@@ -48,10 +48,10 @@ class Swarm():
 
 
 	def get_swarm_range(self):
-		sorted_swarm_votes = sorted(self.votes.values())
+		sorted_swarm_votes = sorted(self.votes[self.voteid].values())
 		#print self.votes
 		my_index = sorted_swarm_votes.index(self.random)
-		client_count = len(self.votes)
+		client_count = len(self.votes[self.voteid].keys())
 
 		buckets = [0]
 		bucket_size = 256.0/(len(sorted_swarm_votes))
