@@ -49,6 +49,13 @@ class User():
 				return True
 		return False
 
+	def channel_flags(self, channel_name):
+		for channel in self.channel_list:
+			if channel_name == channel.name:
+				return channel.get_flags(self.nick)
+		return None
+
+
 class Ban():
 	def __init__(self, banmask, banner_nick, timestamp):
 		self.banmask = banmask
@@ -60,15 +67,44 @@ class Channel():
 		self.name = channel_name
 		self.user_list = []
 		self.ban_list = []
+		self.flag_list = {}
 
 	def add_user(self, user):
 		if user not in self.user_list:
 			self.user_list.append(user)
 
+	def add_flags(self, nick, flags):
+		if flags == None:
+			return
+		self.flag_list[nick] = flags
+
+	def add_flag(self, nick, flag):
+		if flag == None:
+			return
+		if nick in self.flag_list:
+			self.flag_list[nick] += flag
+		else:
+			self.flag_list[nick] = flag
+
+	def remove_flag(self, nick, flag):
+		if flag == None:
+			return
+		if nick in self.flag_list:
+			self.flag_list = self.flag_list.replace(flag, '')
+
+	def get_flags(self, nick):
+		if nick in self.flag_list:
+			return self.flag_list[nick]
+		else:
+			return None
+
 	def remove_user(self, nick):
 		for user in user_list:
 			if user.nick == nick:
 				self.user_list.remove(user)
+
+		if nick in self.flag_list:
+			del self.flag_list[nick]
 
 	def add_ban(self, banmask, banner_nick, timestamp):
 		b = Ban(banmask, banner_nick, timestamp)
@@ -120,14 +156,15 @@ class Network():
 		else:
 			raise Exception('No such channel, %s' % channel_name)
 
-	def __add_user_to_channel(self, nick, channel_name):
+	def __add_user_to_channel(self, nick, channel_name, flags):
 		c = self.channel_by_name(channel_name)
 		u = self.user_by_nick(nick)
 
 		c.add_user(u)
+		c.add_flags(nick, flags)
 		u.add_channel(c)
 
-	def add_user(self, nickuserhost, channel_name = None):
+	def add_user(self, nickuserhost, channel_name = None, flags = None):
 		(nick, userhost) = nickuserhost.split('!')
 		(user, host) = userhost.split('@')
 
@@ -138,7 +175,7 @@ class Network():
 		self.all_users.append(u)
 
 		if channel_name:
-			self.__add_user_to_channel(nick, channel_name)
+			self.__add_user_to_channel(nick, channel_name, flags)
 
 	def del_user(self, nick):
 		try:
@@ -159,6 +196,12 @@ class Network():
 		try:
 			u = self.user_by_nick(nick)
 			u.remove_channel(channel_name)
+		except Exception:
+			pass
+
+		try:
+			c = self.channel_by_name(channel_name)
+			c.remove_user(nick)
 		except Exception:
 			pass
 
@@ -464,6 +507,31 @@ class IRCClient(AutoReloader):
 			self.net.channel_add_ban(channel, target, source, int(time.time()))
 		elif mode == '-b':
 			self.net.channel_remove_ban(channel, target)
+		elif mode == '+v':
+			try:
+				c = self.net.channel_by_name(channel)
+				c.add_flag(target, '+')
+			except Exception:
+				pass
+		elif mode == '-v':
+			try:
+				c = self.net.channel_by_name(channel)
+				c.remove_flag(target, '+')
+			except Exception:
+				pass
+		elif mode == '+o':
+			try:
+				c = self.net.channel_by_name(channel)
+				c.add_flag(target, '@')
+			except Exception:
+				pass
+		elif mode == '-o':
+			try:
+				c = self.net.channel_by_name(channel)
+				c.remove_flag(target, '@')
+			except Exception:
+				pass
+
 
 
 		if "on_mode" in self.callbacks:
@@ -487,13 +555,13 @@ class IRCClient(AutoReloader):
 		self.net.mynick = newnick
 
 	def on_part(self, tupels):
-		source, channel, reason = [tupels[1], tupels[4], tupels[5]]
+		source, channel_name, reason = [tupels[1], tupels[4], tupels[5]]
 
 		source_nick = self.get_nick(source)
-		self.net.part_nick(source_nick, channel)
+		self.net.part_nick(source_nick, channel_name)
 
 		if "on_part" in self.callbacks:
-			self.callbacks["on_part"](self.network, source, channel, reason)
+			self.callbacks["on_part"](self.network, source, channel_name, reason)
 
 		# if channel in self.nick_lists:
 		# 	if source_nick in self.nick_lists[channel]:
@@ -613,6 +681,10 @@ class IRCClient(AutoReloader):
 		nick = reply[4]
 		prefix = reply[5].replace('H','')
 
+		# print "(who) tupules: ", tupels
+		# print "(who) tupels[5]: %s" % tupels[5]
+		# print "(who) prefix: %s" % prefix
+
 		#self.log_line(timestamp() + " " + self.network + " WHO: %s!%s@%s (%s)" % (nick,user,hostname,prefix))
 
 		# if not channel in self.nick_lists:
@@ -620,7 +692,7 @@ class IRCClient(AutoReloader):
 		# self.nick_lists[channel][nick] = {'prefix':prefix}
 		#self.users_list[nick] = "%s!%s@%s" % (nick,user,hostname)
 
-		self.net.add_user("%s!%s@%s" % (nick,user,hostname), channel_name=channel)
+		self.net.add_user("%s!%s@%s" % (nick,user,hostname), channel, prefix)
 
 		if "on_whoreply" in self.callbacks:
 			self.callbacks["on_whoreply"](self.network)
