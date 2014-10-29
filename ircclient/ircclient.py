@@ -43,6 +43,11 @@ class User():
 		self.nick = new_nick
 		self.__nuh()
 
+	def in_channel(self, channel_name):
+		for channel in self.channel_list:
+			if channel_name == channel.name:
+				return True
+		return False
 
 class Ban():
 	def __init__(self, banmask, banner_nick, timestamp):
@@ -77,6 +82,12 @@ class Channel():
 	def is_banned(self, banmask):
 		for ban in self.ban_list:
 			if ban.banmask == banmask:
+				return True
+		return False
+
+	def has_nick(self, nick):
+		for user in self.user_list:
+			if nick == user.nick:
 				return True
 		return False
 
