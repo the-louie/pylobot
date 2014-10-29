@@ -31,6 +31,7 @@ class Landlady(Command):
 		self.bot = bot
 		self.client = bot.clients[network]
 		self.net = self.client.net
+		self.bot.swarm = self.Swarm
 
 		self.Util.bot = bot
 		self.Util.client = self.client

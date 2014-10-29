@@ -15,6 +15,7 @@ class Settings():
 		self.kb_settings = {}
 		self.swarm = {}
 		self.general = {}
+		self.fenrus = {}
 
 class LLUtils():
 	def __init__(self):
@@ -100,9 +101,9 @@ class LLUtils():
 		for key in DefaultSettings.default['kb_settings'].keys():
 			self.Settings.kb_settings[key] = copy.copy(DefaultSettings.default['kb_settings'][key])
 			print "DEBUG: kb_settings, %s = %s" % (key,DefaultSettings.default['kb_settings'][key])
+
 		self.Settings.kb_settings['ban_timemul'] = DefaultSettings.default['kb_settings']['ban_timemul'].split(',')
 		self.Settings.kb_settings['child_chans'] = DefaultSettings.default['kb_settings']['child_chans'].split(' ')
-
 
 		self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
 		self.Settings.swarm_enabled = copy.deepcopy(DefaultSettings.swarm_enabled)

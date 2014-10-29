@@ -246,6 +246,7 @@ class IRCClient(AutoReloader):
 		self.network = network
 		self.password = password
 
+		self.swarm = None
 
 		self.net = Network(network)
 		self.net.mynick = self.nick
