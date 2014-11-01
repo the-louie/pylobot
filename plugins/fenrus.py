@@ -66,7 +66,7 @@ class Fenrus(Command):
 
 	def sync_channels(self):
 		print "(fenrus) sync_channels"
-		delay = float(randrange(3000, 9000)/10)
+		delay = float(randrange(3000, 12000)/10)
 		self.bot.add_timer(datetime.timedelta(0, delay), False, self.sync_channels)
 
 		# don't sync too often
