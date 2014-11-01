@@ -61,33 +61,6 @@ class Landlady(Command):
 
 
 
-	def trigger_info(self, net, source, target, trigger, argument):
-		if target != self.Settings.kb_settings['command_chan']:
-			print "ERROR: inforequest from outside %s" % self.Settings.kb_settings['command_chan']
-			return
-
-		if argument.split(' ')[0] != self.net.mynick:
-			print "INFO: inforequest for other bot %s (i'm %s)" % (argument.split(' ')[0],self.net.mynick)
-			return
-
-		result = []
-		if argument.split(' ')[1] == 'swarm':
-			rowresult = "(swarm) enabled: %s" % self.Swarm.enabled
-			if self.Swarm.enabled:
-				rowresult += " voteid: %s swarmrange: %s" % (self.Swarm.voteid, self.Swarm.range)
-			result.append(rowresult)
-			return result
-
-		# if argument.split(' ')[1] == 'ban':
-		# 	for channel in self.Settings.kb_settings['child_chans'].split(' '):
-		# 		print "DEBUG: Checking %s" % channel
-		# 		if channel in bot.clients[network].banlists:
-		# 			real_length = len([bot.clients[network].banlists[channel] for r in bot.clients[network].banlists[channel] if r != 'AGE'])
-		# 			virt_length = 'Not implemented'
-		# 			result.append("(ban %s) real list: %s, virtual list: %s" % (channel,real_length, virt_length))
-		# 	return result
-
-
 	"""
 		Take care of any incoming kick-ban requests
 	"""
@@ -116,9 +89,6 @@ class Landlady(Command):
 		if not banmask:
 			return "Couldn't find user %s" % (targetnick)
 
-		#print "\n"
-		#print " *** trig_kb banmask", banmask
-
 		# Add punishfactor
 		factor = self.Util.get_punish_factor(banmask, self.net.name)
 		bantime = int(bantime) * int(factor)
@@ -133,8 +103,7 @@ class Landlady(Command):
 		self.Util.save_kickban(self.net.name, targetnick, banmask, reason, bantime, trigger_nick, cmd)
 		if self.Settings.swarm_enabled:
 			self.Util.announce_kickban(targetnick, banmask, reason, bantime, trigger_nick, cmd)
-		#print "%s|%s|%s" % (targetnick,banmask,reason)
-		#return "%s|%s|%s" % (targetnick,banmask,reason)
+
 		return None
 
 
@@ -144,72 +113,70 @@ class Landlady(Command):
 	def on_join(self, bot, userhost, channel, network, **kwargs):
 		nick = self.Util.extract_nick(userhost)
 
-		# if swarm mode enabled
-		# check so it's we that are joining the swarm channel
-		# print "on_join(self, bot, %s, %s, %s, **kwargs)" % (userhost, channel, network)
-		# print "self.net.mynick = %s" % self.net.mynick
-		# print "nick = %s" % nick
-		# print "channel = %s" % channel
-		# print "swarm channel = %s" % self.Swarm.channel
-		# print "swarm enabled %s" % self.Settings.swarm_enabled
 		if self.Settings.swarm_enabled and (nick == self.net.mynick) and (channel == self.Swarm.channel):
-			self.bot.add_timer(datetime.timedelta(0, randrange(2,20)), False, self.force_revote) # vote in a couple of secs
-
+			wait_time = randrange(2,5)+float(randrange(10))/10
+			self.Swarm.next_vote_time = int((datetime.datetime.now()+datetime.timedelta(0,wait_time)).strftime("%s"))
+			self.bot.add_timer(datetime.timedelta(0, wait_time), False, self.force_revote)
 		return
 
 
 	# wrapper for send_vote to force a new vote
 	# to be used with timer
 	def force_revote(self):
-		if self.Swarm.unvoted_id != None:
+		if self.Swarm.unvoted_id != None and time.time() < self.Swarm.next_vote_time:
 			print "(swarm) unvoted id already set (%s), escaping" % (self.Swarm.unvoted_id)
 			return
 		self.Swarm.unvoted_id = randrange(0,65535)
 		self.Swarm.votes[self.Swarm.unvoted_id] = {}
 		self.send_vote()
 
+	def time_vote(self, wait_time, next_vote_time=None):
+		if time.time() > self.Swarm.next_vote_time:
+			# if there's a timer in the future lets skip this one.
+			self.Swarm.next_vote_time = int((datetime.datetime.now()+datetime.timedelta(0,wait_time)).strftime("%s"))
+			self.Swarm.vote_timer_id = self.bot.add_timer(datetime.timedelta(0, wait_time), False, self.send_vote, next_vote_time)
+			self.Swarm.unvoted_id = None
 
 	# send vote
-	def send_vote(self):
-		# print "*"*10,"\n"
-		# print "send_vote()"
-		# print "self.Swarm.unvoted_id", self.Swarm.unvoted_id
-		# print "self.Swarm.voteid", self.Swarm.voteid
-		# print "*"*10,"\n"
+	def send_vote(self, next_vote_time=None):
+		self.Swarm.vote_timer_id = 0
 
 		# don't vote twice on the same id
 		if self.Swarm.unvoted_id == self.Swarm.voteid:
-			#print "*** Already voted on %s ***" % self.Swarm.unvoted_id
-			# vote again in a while
-			wait_delta = float(randrange(100))/10
-			self.bot.add_timer(datetime.timedelta(0, randrange(300,900)+wait_delta), False, self.force_revote)
-			self.Swarm.unvoted_id = None
+			self.Swarm.posponed_vote_count = 0
+			# vote again in a while if there's no pending vote times
+			wait_time = randrange(600,1200)+float(randrange(100))/10
+			self.time_vote(wait_time)
 			return
 
 		# don't vote if we don't have any unvoted id to vote for
 		if self.Swarm.unvoted_id == None:
-			#print "*** No unvoted id to vote on ***"
-			# vote again in a while
-			wait_delta = float(randrange(100))/10
-			self.bot.add_timer(datetime.timedelta(0, randrange(300,900)+wait_delta), False, self.force_revote)
+			self.Swarm.posponed_vote_count = 0
+			# vote again in a while  if there's no pending vote times
+			wait_time = randrange(600,1200)+float(randrange(100))/10
+			self.time_vote(wait_time)
 			return
 
 
 		last_vote_delta_time = time.time() - self.Swarm.last_vote_time
-		if last_vote_delta_time < 30: # make sure we didn't vote just
-			#print "last_vote_delta_time < 120 (%d)" % last_vote_delta_time
-			#print "posponed_vote_count %d" % self.Swarm.posponed_vote_count
+		if last_vote_delta_time < 300:
+			# don't vote too often
+			wait_time = randrange(600,1200)+float(randrange(100))/10
+			self.time_vote(wait_time)
+			return
+			# make sure we didn't vote just
 			self.Swarm.posponed_vote_count += 1
-			if self.Swarm.posponed_vote_count <= 10: # if we havn't posponed votes 10 times try agin in a while
+			if self.Swarm.posponed_vote_count <= 10:
+				# if we havn't posponed votes 10 times try agin in a while
 				min_wait = int(30-last_vote_delta_time)
-				wait_time = float(randrange(min_wait*10,600))/10
-				#print "self.Swarm.posponed_vote_count <= 10, waiting for %s sec" % wait_time
-				self.bot.add_timer(datetime.timedelta(0, wait_time), False, self.send_vote)
-			else: # avoid trying too hard, let us revote in a while instead
-				wait_time = randrange(300,900)
+				wait_time = randrange(min_wait,30)+float(randrange(100))/10
+				self.time_vote(wait_time)
+
+			else:
+				# avoid trying too hard, let us revote in a while instead if there's no pending vote times
 				self.posponed_vote_count = 0
-				#print "self.Swarm.posponed_vote_count > 10, waiting for %s sec" % wait_time
-				self.bot.add_timer(datetime.timedelta(0, wait_time), False, self.send_vote)
+				wait_time = randrange(600,1200)+float(randrange(100))/10
+				self.time_vote(wait_time)
 
 			return
 
