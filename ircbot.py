@@ -35,13 +35,26 @@ class PriorityQueue:
 	def top(self):
 		return self.internal_array[0]
 
+	def delete_by_id(self, id):
+		for i in range(len(self.internal_array)):
+			if self.internal_array[i].id == id:
+				self.internal_array[i] = self.internal_array[-1]
+				self.internal_array.pop()
+				heapq._siftup(self.internal_array, i)
+				return True
+		return False
+
+
+
+
 class TimedEvent:
-	def __init__(self, trigger_delta, recurring, target, args):
+	def __init__(self, trigger_delta, recurring, target, id, args):
 		self.trigger_delta = trigger_delta
 		self.trigger_time = datetime.datetime.now() + trigger_delta
 		self.recurring = recurring
 		self.target = target
 		self.args = args
+		self.id = id
 
 	def trigger(self):
 		self.target(*self.args)
@@ -62,6 +75,7 @@ class IRCBot(AutoReloader):
 		self.timer_heap = PriorityQueue()
 		self.next_timer_beat = None
 		self.need_reload = {}
+		self.timer_id = 0
 
 		for network in self.settings.networks:
 			net_settings = self.settings.networks[network]
@@ -258,7 +272,10 @@ class IRCBot(AutoReloader):
 				self.execute_plugins(network, "timer_beat", now)
 
 	def add_timer(self, delta, recurring, target, *args):
-		timer = TimedEvent(delta, recurring, target, args)
+		self.timer_id += 1
+		timer = TimedEvent(delta, recurring, target, self.timer_id, args)
 
 		self.timer_heap.push(timer)
+
+		return self.timer_id
 
