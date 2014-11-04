@@ -20,7 +20,7 @@ class Fenrus(Command):
 
 	def on_connected(self, bot, network, **kwargs):
 		self.bot = bot
-		self.Swarm = self.bot.swarm
+		self.swarm = self.bot.swarm
 		self.client = bot.clients[network]
 		self.net = self.client.net
 
@@ -36,14 +36,8 @@ class Fenrus(Command):
 			delay = float(randrange(1200, 3000)/10)
 			self.bot.add_timer(datetime.timedelta(0, delay), False, self.sync_channels)
 		else:
-			if self.Settings.swarm_enabled:
-				m = hashlib.md5()
-				m.update(targetnick)
-				hashid = int(m.hexdigest()[0:2],16)
-				if not self.Swarm.range[0] <= hashid < self.Swarm.range[1]:
-					# print "(fenrus) ESCAPINg hashid: %s swarm-range: %s-%s" % (hashid, self.Swarm.range[0], self.Swarm.range[1])
-					return False
-				# print "(fenrus) EXECUTING hashid: %s swarm-range: %s-%s" % (hashid, self.Swarm.range[0], self.Swarm.range[1])
+			if self.Settings.swarm_enabled and not self.swarm.nick_matches(targetnick):
+				return False
 
 			for slave_channel_name in self.slave_channels:
 				print "(fenrus) slave_channel_name: %s" % slave_channel_name
@@ -82,6 +76,9 @@ class Fenrus(Command):
 			return
 
 		for master_user in master_users:
+			if self.Settings.swarm_enabled and not self.swarm.nick_matches(master_user.nick):
+				continue
+
 			for slave_channel_name in self.slave_channels:
 				slave_channel = self.net.channel_by_name(slave_channel_name)
 				if not slave_channel.has_nick(master_user.nick):
