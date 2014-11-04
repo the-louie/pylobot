@@ -42,10 +42,14 @@ class Landlady(Command):
         self.net = self.client.net
         self.bot.swarm = self.swarm
 
+        self.swarm.bot = bot
+        self.swarm.client = bot.clients[network]
+
         self.llu.bot = bot
         self.llu.client = self.client
 
-        delay = float(randrange(6000, 12000)/10)
+        # purge old bans
+        delay = int(randrange(6000, 12000)/10)
         self.bot.add_timer(
                 datetime.timedelta(0, delay),
                 False,
@@ -74,7 +78,7 @@ class Landlady(Command):
             print "(swarm) channel: %s" % (
                     self.swarm.channel)
             print "(swarm) votes: %s" % (
-                    self.swarm.get_current_votes)
+                    self.swarm.get_current_votes())
 
 
 
@@ -163,7 +167,7 @@ class Landlady(Command):
             print "ERROR: Swarm vote in none swarm channel (%s)" % target
             return False
 
-        (incoming_vote_id, incoming_vote) = self.swarm.parse_vote(argument)
+        (incoming_vote_id, incoming_vote) = self.swarm.parse_vote(argument, source)
         if (incoming_vote_id is None) or (incoming_vote is None):
             print "ERROR: error in vote arguments"
             return False
@@ -189,11 +193,12 @@ class Landlady(Command):
         # if swarm is enabled and we joined the swarm channel
         # we should start the vote-madness
         if self.settings.swarm_enabled and (nick == self.net.mynick) and (channel == self.swarm.channel):
-            self.swarm.enabled = True
+            self.swarm.enable()
             wait_time = randrange(
                     self.swarm.min_vote_time,
                     self.swarm.min_vote_time*2
                 )
+            print "(swarm) joined swarm channel, voting in %s seconds" % (wait_time)
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
                     True,
@@ -221,11 +226,12 @@ class Landlady(Command):
             return
 
         self.swarm.create_vote(self.net.mynick)
-        self.client.tell(self.swarm.channel,"%svote %d %d" % (
+        self.client.tell(self.swarm.channel,"%svote %d %d %s" % (
                 self.bot.settings.trigger,
                 self.swarm.current_voteid,
-                self.swarm.random))
-        self.swarm.enabled = True
+                self.swarm.random,
+                self.swarm.vote_hash))
+        self.swarm.enable()
 
 
 #    def on_part(self, bot, userhost, channel, network):
@@ -243,7 +249,7 @@ class Landlady(Command):
         nick = self.llu.extract_nick(userhost)
         if channel == self.swarm.channel:
             if nick != self.net.mynick:
-                self.swarm.enabled = False
+                self.swarm.disable()
             else:
                 self.swarm.remove_bot(nick)
 
