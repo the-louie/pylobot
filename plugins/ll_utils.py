@@ -20,7 +20,7 @@ class Settings():
 class LLUtils():
 	def __init__(self):
 		self.Settings = Settings()
-		self.Swarm = Swarm()
+		self.Swarm = Swarm
 
 		self.bot = None
 		self.client = None
