@@ -420,25 +420,10 @@ class IRCClient(AutoReloader):
 			return host
 
 	def on_begin_nick_list(self, tupels):
-		# m = re.search('. (.+?) :(.*)$', tupels[5])
-
-		# if m:
-		# 	channel, nicks = m.group(1, 2)
-
-		# 	if self.temp_nick_list_channel != channel:
-		# 		self.temp_nick_list_channel = channel
-		# 		self.temp_nick_list = {}
-
-		# 	for m in re.findall('([^a-zA-Z\[\]{}]?)(.+?)(\s|$)', nicks):
-		# 		# legacy #
-		# 		# prefix, nick = m[0:2]
-		# 		# self.temp_nick_list[nick] = {'prefix':prefix}
-		# 		# legacy #
 		pass
 
 
 	def on_end_nick_list(self, tupels):
-		#self.nick_lists[self.temp_nick_list_channel] = self.temp_nick_list
 		pass
 
 	def on_join(self, tupels):
@@ -450,10 +435,6 @@ class IRCClient(AutoReloader):
 			self.send("WHO %s" % channel)
 			self.send("MODE %s +b" % channel)
 		else:
-			# if channel not in self.nick_lists:
-			# 	self.nick_lists[channel] = {}
-			# self.nick_lists[channel][nick] = {'prefix':''}
-			# self.users_list[nick] = source
 			self.net.add_user(source, channel)
 
 		if "on_join" in self.callbacks:
@@ -487,15 +468,6 @@ class IRCClient(AutoReloader):
 			self.net.user_change_nick(source_nick, new_nick)
 		except Exception:
 			self.command_queue.append({'timestamp':time.time(), 'command': self.net.user_change_nick(source_nick, new_nick)})
-
-		# if source_nick in self.users_list.keys():
-		# 	self.users_list[new_nick] = self.users_list[source_nick]
-		# 	del self.users_list[source_nick]
-
-		# for nick_list in self.nick_lists.values():
-		# 	if source_nick in nick_list:
-		# 		nick_list[new_nick] = nick_list[source_nick]
-		# 		del(nick_list[source_nick])
 
 	def on_mode(self, tupels):
 		if len(tupels) == 7:
@@ -541,10 +513,6 @@ class IRCClient(AutoReloader):
 	def on_userhost(self, tupels):
 		message = tupels[5]
 		userhosts = tupels[5].split(' ')
-		# for userhost in userhosts:
-		# 	m = re.search('^(.+)=\+?(.+@.*)$', userhost)
-		# 	if m is not None:
-		# 		self.users_list[m.group(1)] = m.group(2)
 
 		if "on_userhost" in self.callbacks:
 			self.callbacks["on_userhost"]()
@@ -564,19 +532,8 @@ class IRCClient(AutoReloader):
 		if "on_part" in self.callbacks:
 			self.callbacks["on_part"](self.network, source, channel_name, reason)
 
-		# if channel in self.nick_lists:
-		# 	if source_nick in self.nick_lists[channel]:
-		# 		del(self.nick_lists[channel][source_nick])
-
-		# last_channel = True
-		# for chan_nick_list in self.nick_lists.values():
-		# 	if source_nick in chan_nick_list:
-		# 		last_channel = False
-
 		if len(self.net.nick_channels(source_nick)) == 0:
 			self.net.del_user(source_nick)
-			# if source_nick in self.users_list:
-			# 	del(self.users_list[source_nick])
 
 	def on_quit(self, tupels):
 		source = tupels[1]
@@ -590,14 +547,7 @@ class IRCClient(AutoReloader):
 		if "on_quit" in self.callbacks:
 			self.callbacks["on_quit"](self.network, source_nick, reason)
 
-		# for nick_list in self.nick_lists.values():
-		# 	if source_nick in nick_list:
-		# 		del(nick_list[source_nick])
-
 		self.net.del_user(source_nick)
-		# if source_nick in self.users_list.keys():
-		# 	del self.users_list[source_nick]
-
 
 	def on_ping(self, tupels):
 		self.ping_count += 1
@@ -681,17 +631,6 @@ class IRCClient(AutoReloader):
 		server = reply[3]
 		nick = reply[4]
 		prefix = reply[5].replace('H','')
-
-		# print "(who) tupules: ", tupels
-		# print "(who) tupels[5]: %s" % tupels[5]
-		# print "(who) prefix: %s" % prefix
-
-		#self.log_line(timestamp() + " " + self.network + " WHO: %s!%s@%s (%s)" % (nick,user,hostname,prefix))
-
-		# if not channel in self.nick_lists:
-		# 	self.nick_lists[channel] = {}
-		# self.nick_lists[channel][nick] = {'prefix':prefix}
-		#self.users_list[nick] = "%s!%s@%s" % (nick,user,hostname)
 
 		self.net.add_user("%s!%s@%s" % (nick,user,hostname), channel, prefix)
 
