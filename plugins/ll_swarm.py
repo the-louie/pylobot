@@ -42,6 +42,8 @@ class Swarm():
         self.bot = None
         self.client = None
 
+        self.swarm_op_timer = None
+
     def nick_matches(self, targetnick):
         md5hash = hashlib.md5()
         md5hash.update(targetnick)
@@ -59,12 +61,13 @@ class Swarm():
         self.enabled = True
 
         # make sure the swarm is opped periodically
-        delay = int(randrange(600, 1200)/10)
-        self.bot.add_timer(
-                datetime.timedelta(0, delay),
-                True,
-                self.op_bots
-            )
+        if self.swarm_op_timer == None:
+            delay = int(randrange(600, 1200)/10)
+            self.swarm_op_timer = self.bot.add_timer(
+                    datetime.timedelta(0, delay),
+                    True,
+                    self.op_bots
+                )
 
     def disable(self):
         """
