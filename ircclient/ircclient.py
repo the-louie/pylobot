@@ -239,8 +239,8 @@ class IRCClient(AutoReloader):
 
 		self.s = None
 
-
-		self.nick = nick[random.randrange(0,len(nick)-1)]
+		self.availible_bot_nicks = nick
+		self.nick = self.availible_bot_nicks[random.randrange(0,len(nick)-1)]
 		self.username = username or self.nick
 		self.realname = realname
 		self.network = network
@@ -550,7 +550,7 @@ class IRCClient(AutoReloader):
 			self.callbacks["on_userhost"]()
 
 	def on_nick_inuse(self, tuples):
-		newnick = self.nick[:6] + "".join([random.choice(string.ascii_letters + string.digits + "-") for i in xrange(3)])
+		newnick = self.availible_bot_nicks[random.randrange(0,len(nick)-1)]
 		self.send("NICK " + newnick)
 		self.nick = newnick
 		self.net.mynick = newnick
