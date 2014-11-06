@@ -19,11 +19,11 @@ class Fenrus(Command):
 		self.last_sync_time = 0
 
 	def on_connected(self, event):
-		# client = event['client']
-		# self.bot = event['bot']
-		# self.swarm = self.bot.swarm
-		# self.client = bot.clients[network]
-		# self.net = self.client.net
+		self.client = event['client']
+		self.bot = event['bot']
+		self.swarm = self.bot.swarm
+		#self.client = bot.clients[network]
+		self.net = self.client.net
 		pass
 
 	# if someone joins the master chan (and it isn't us) we should
