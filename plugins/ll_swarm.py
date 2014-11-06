@@ -193,9 +193,12 @@ class Swarm():
 
         for channel_name in self.opchans:
             channel = self.client.net.channel_by_name(channel_name)
+            if not channel.has_op(self.client.nick): # only check channels we have op in
+                continue
             for botnick in self.get_swarm_members():
-                flags = channel.get_flags(botnick)
-                if channel.has_nick(botnick) and (not flags or ("+" not in flags and "@" not in flags)):
+                if botnick == self.client.nick: # don't try to op myself
+                    continue
+                if channel.has_nick(botnick) and (not channel.has_op(botnick) and not channel.has_voice(botnick)):
                     self.client.send("MODE %s +o %s" % (channel_name, botnick))
 
 

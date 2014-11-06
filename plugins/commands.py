@@ -11,7 +11,7 @@ class Command(Plugin):
 			self.triggers
 		)
 
-	def on_trigger(self, bot, source, returner, trigger, argument):
+	def on_trigger(self, event):
 		raise Exception('on_trigger not implemented')
 
 	def can_trigger(self, source, trigger):

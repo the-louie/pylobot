@@ -449,7 +449,7 @@ class IRCClient(AutoReloader):
 			"message": message
 		}
 
-		if "on_privmsg" in self.callbacks:
+		if "on_notice" in self.callbacks:
 			self.callbacks["on_notice"](event)
 
 	def on_connected(self, tupels):
@@ -457,6 +457,7 @@ class IRCClient(AutoReloader):
 
 		print "add_user(%s!%s@%s)" % (self.nick,self.username,"localhost")
 		self.net.add_user("%s!%s@%s" % (self.nick,self.username,"localhost"))
+		self.me = self.net.user_by_nick(self.nick)
 
 		event = {
 			"client": self,

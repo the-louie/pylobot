@@ -24,6 +24,8 @@ class Landlady(Command):
         self.net = None
         self.client = None
 
+        self.vote_reply_timer = 0
+
         self.banlist_age = {}
         self.banlist_timestamp = {}
 
@@ -156,13 +158,22 @@ class Landlady(Command):
         return None
 
 
-    def trig_vote(self, bot, source, target, trigger, argument, network):
+    def trig_vote(self, event):
         """if someone else votes we should answer asap"""
+        bot = event['bot']
+        source = event['source'].nick
+        if event['target']:
+            target = event['target'].name
+        else:
+            target = source
+        trigger = event['trigger']
+        arguments = event['arguments']
+
         print "trig_vote(self,bot,%s,%s,%s,%s,network)" % (
                 source,
                 target,
                 trigger,
-                argument
+                arguments
             )
         if not self.settings.swarm_enabled:
             return
@@ -171,7 +182,7 @@ class Landlady(Command):
             print "ERROR: Swarm vote in none swarm channel (%s)" % target
             return False
 
-        (incoming_vote_id, incoming_vote) = self.swarm.parse_vote(argument, source)
+        (incoming_vote_id, incoming_vote) = self.swarm.parse_vote(arguments, source)
         if (incoming_vote_id is None) or (incoming_vote is None):
             print "ERROR: error in vote arguments"
             return False
@@ -181,10 +192,20 @@ class Landlady(Command):
 
         self.swarm.votes[incoming_vote_id][source] = incoming_vote
 
-        if incoming_vote_id != self.swarm.current_voteid:
+        if not self.vote_reply_timer and incoming_vote_id != self.swarm.current_voteid:
             # new vote, we need to vote
+            self.vote_reply_timer = True
             self.swarm.unvoted_id = incoming_vote_id
-            self.send_vote()
+            wait_time = randrange(0,5)
+            self.bot.add_timer(
+                    datetime.timedelta(0, wait_time),
+                    False,
+                    self.delayed_vote
+                )
+
+        elif self.vote_reply_timer:
+            # already a timer running
+            print "(swarm) triggered vote but vote_reply_timer is %s" % (self.vote_reply_timer)
         else:
             # we already voted on this
             self.swarm.range = self.swarm.get_swarm_range() # update ranges
@@ -220,6 +241,10 @@ class Landlady(Command):
         self.send_vote()
 
 
+    def delayed_vote(self):
+        self.vote_reply_timer = False
+        self.send_vote()
+
     def send_vote(self):
         """create and send vote to swarm-channel"""
         if self.swarm.unvoted_id == None:
@@ -251,7 +276,7 @@ class Landlady(Command):
 
         nick = event['user'].nick
         if event['channel'].name == self.swarm.channel:
-            if nick != event['client'].net.mynick:
+            if nick == event['client'].net.mynick:
                 self.swarm.disable()
             else:
                 self.swarm.remove_bot(nick)
@@ -265,18 +290,27 @@ class Landlady(Command):
         self.swarm.remove_bot(event['nick'])
 
 
-    def trig_banned(self, bot, source, target, trigger, argument, network):
+    def trig_banned(self, event):
         """
         a bot banned someone, we should add this to our internal list
         so if the user rejoins we know that he/she is banned.
         """
+        bot = event['bot']
+        source = event['source'].nick
+        if event['target']:
+            target = event['target'].name
+        else:
+            target = source
+        trigger = event['trigger']
+        arguments = event['arguments']
+
         if not self.settings.swarm_enabled or not self.swarm.enabled:
             return
 
         if target != self.swarm.channel:
             return False
 
-        arguments = argument.split(' ')
+        arguments = arguments.split(' ')
         arguments_decoded = []
         try:
             for arg in arguments:
@@ -287,7 +321,7 @@ class Landlady(Command):
                     source,
                     target,
                     trigger,
-                    argument,
+                    arguments,
                     network)
             print "EXCEPTION %s %s" % (estr.__class__.__name__, estr)
             print " -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  - "

@@ -82,7 +82,7 @@ def get_all_subclasses(c):
 		l.extend(get_all_subclasses(subclass))
 	return l
 
-def timeout(f, timeout = 1, args = (), kwargs = {}):
+def timeout(f, timeout = 1, event = {}):
 	def handler(signum, frame):
 		raise TimeoutException
 
@@ -91,7 +91,7 @@ def timeout(f, timeout = 1, args = (), kwargs = {}):
 
 	result = None
 	try:
-		result = f(*args, **kwargs)
+		result = f(event)
 	except:
 		signal.alarm(0)
 		raise
