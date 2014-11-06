@@ -111,7 +111,6 @@ class Swarm():
         if self.current_voteid not in self.votes:
             self.votes[self.current_voteid] = {}
         self.votes[self.current_voteid][mynick] = self.random
-        self.last_vote_time = time.time()
         self.range = self.get_swarm_range()
         self.unvoted_id = None
         self.vote_hash = self.create_vote_hash(self.current_voteid, self.random, mynick)

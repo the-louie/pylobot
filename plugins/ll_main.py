@@ -77,7 +77,7 @@ class Landlady(Command):
         if self.swarm.enabled:
             print "(swarm) voteid: %s (%s)" % (
                     self.swarm.current_voteid, self.swarm.range)
-            print "(swarm) last: %s s ago" % (
+            print "(swarm) last vote: %s s ago" % (
                     time.time() - self.swarm.last_vote_time)
             print "(swarm) channel: %s" % (
                     self.swarm.channel)
@@ -211,7 +211,7 @@ class Landlady(Command):
 
     def reoccuring_vote(self):
         """send out vote every once in a while, if we havn't voted just"""
-        if time.time() - self.swarm.last_vote_time < self.swarm.min_vote_time:
+        if (time.time() - self.swarm.last_vote_time) < self.swarm.min_vote_time:
             print "(swarm) reoccuring_vote(): throttling vote. %s < %s" % (
                     time.time() - self.swarm.last_vote_time,
                     self.swarm.min_vote_time)
@@ -235,6 +235,9 @@ class Landlady(Command):
                 self.swarm.current_voteid,
                 self.swarm.random,
                 self.swarm.vote_hash))
+
+        self.swarm.last_vote_time = time.time()
+
         self.swarm.enable()
 
 
