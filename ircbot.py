@@ -102,7 +102,7 @@ class IRCBot(AutoReloader):
 			raise DeprecationWarning("network parameter missing")
 		return self.clients['networks'].is_connected()
 
-	def execute_plugins(self, trigger, event = None):
+	def execute_plugins(self, trigger, event = {}):
 		for plugin in plugin_handler.all_plugins():
 			try:
 				if plugin.__class__.__dict__.has_key(trigger):
