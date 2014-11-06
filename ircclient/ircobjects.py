@@ -41,6 +41,12 @@ class User():
 				return channel.get_flags(self.nick)
 		return None
 
+	def has_op(self, channel_name):
+		return "@" in (self.channel_flags(channel_name) or "")
+
+	def has_voice(self, channel_name):
+		return "+" in (self.channel_flags(channel_name) or "")
+
 	def quit(self):
 		self.online = False
 
@@ -85,6 +91,12 @@ class Channel():
 			return self.flag_list[nick]
 		else:
 			return None
+
+	def has_op(self, nick):
+		return "@" in (self.get_flags(nick) or "")
+
+	def has_voice(self, nick):
+		return "+" in (self.get_flags(nick) or "")
 
 	def remove_user(self, nick):
 		for user in user_list:
