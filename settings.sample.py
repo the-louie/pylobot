@@ -1,21 +1,28 @@
+from sys import argv
 from autoreloader.autoreloader import AutoReloader # Do not remove
 class Settings(AutoReloader):                      # these two lines
 
 	# Sample config, all options are mandatory
 	networks = {
-		"example": {"server_address": "irc.example.com",
-			     "server_password": "mypassword", # optional, omit if unused.
-			     "server_port": 6667,
-			     "nick": "CHANGEME",
-			     "username": "CHANGEME",
-			     "realname": "CHANGEME",
-			     "channels": [["#CHANGEME"], ["#channel", "password"], ],
-			     },
+		"quakenet": {
+				"server_address": "irc.server.com",
+				#"server_password": "mypassword", # optional, omit if unused.
+				"server_port": 6667,
+				"nick": ["nickname_a", "nickname_b", "nickname_c"],
+				"username": None,
+				"realname": "PyIrkBot",
+				"channels": [["#a_channel"],["#another_channel"],["#channel_with_key","secretkey"]],
+		     }
 		}
 
-	admin_network = "example"
-	admin_channel = "#example"
-	admin_adminnicks = ["CHANGEME"]
+	# if we supply qauth via command line deffer joins
+	# until we are mode +x
+	if len(argv) == 3:
+		deferred_join = True
+		qauth = (argv[1], argv[2])
+	else:
+		deferred_join = False
+		qauth = None
 
 	trigger = "."
 
@@ -24,19 +31,4 @@ class Settings(AutoReloader):                      # these two lines
 
 	# Plugins that will be loaded on startup from plugins/
 	# Use this directory to view all available Plugins and to add your own.
-	plugins = ['plugins', 'command_catcher', 'commands', 'standard', 'utility']
-
-	# If you want to enable more plugins comment out the above
-	# and uncomment the ones below.
-	#plugins = ['plugins', 'command_catcher', 'commands', 'standard', 'reloader', 'utility',
-        #          "options", "admin", "google", "insult", "temperature_nu", "wikipedia",
-	#	   "aduno", "alpha", "char", "code", "compliment", "countdown",
-	#	   "down", "example_plugin", "favorites", "festern_bbq", "fml",
-	#	   "food", "game_plugin", "give", "googlefight", "ical_parser",
-	#	   "icq", "imdb", "isitfriday", "kolli", "lithcourse", "magic8ball",
-	#	   "mat", "metacritic", "nelson", "nextep", "notes", "pi",
-	#	   "postnr", "prisjakt", "pylisp", "qotd", "randombuy",
-	#	   "reminder", "roulette", "rss", "scale", "spotify", "stava",
-	#	   "systembolaget", "tenta", "timezone", "title_reader", "tv",
-	#	   "tyda", "yrno"]
-
+	plugins = ['plugins', 'command_catcher', 'commands', 'utility' ]
