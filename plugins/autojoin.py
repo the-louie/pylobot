@@ -6,9 +6,9 @@ class AutoJoin(Command):
 	def __init__(self):
 		self.bot = None
 
-	def on_connected(self, bot, network, **kwargs):
-		self.bot = bot
-		self.join_all_channels(network)
+	def on_connected(self, event):
+		self.bot = event['bot']
+		self.join_all_channels(event['client'].net.name)
 
 	def join_all_channels(self, network):
 		if self.bot.settings.deferred_join:

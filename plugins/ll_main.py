@@ -32,20 +32,20 @@ class Landlady(Command):
             self.swarm = Swarm()
             self.swarm.channel = self.settings.swarm['channel']
 
-    def on_connected(self, bot, network, **kwargs):
+    def on_connected(self, event):
         """
         set up stuff when we're connected, we need a ref to
         the bot, swarm and stuff.
         """
-        self.bot = bot
-        self.client = bot.clients[network]
+        self.bot = event['bot']
+        self.client = event['client']
         self.net = self.client.net
         self.bot.swarm = self.swarm
 
-        self.swarm.bot = bot
-        self.swarm.client = bot.clients[network]
+        self.swarm.bot = self.bot
+        self.swarm.client = self.client
 
-        self.llu.bot = bot
+        self.llu.bot = self.bot
         self.llu.client = self.client
 
         # purge old bans
@@ -57,15 +57,19 @@ class Landlady(Command):
             )
 
 
-    def on_privmsg(self, bot, source, target, message, network, **kwargs):
+    def on_privmsg(self, event):
         """
         Expose some functions
         """
+        source_nick = event['source']
+        target_chan = event['target']
+        message = event['message']
+
         if len(message) < 4:
             return
         if message.split(' ')[0][:3] == '.kb':
             argument = " ".join(message.split(' ')[1:])
-            self.trigger_kb(source, target, argument)
+            self.trigger_kb(source_nick, target_chan, argument)
 
     def debug_info(self, network = None):
         """trigger on debug_info signal and print debug info"""
@@ -186,13 +190,13 @@ class Landlady(Command):
             self.swarm.range = self.swarm.get_swarm_range() # update ranges
             self.swarm.unvoted_id = None # we have no unvoted votes
 
-    def on_join(self, bot, userhost, channel, network, **kwargs):
+    def on_join(self, event):
         """If we join the swarm.channel we need to vote"""
-        nick = self.llu.extract_nick(userhost)
+        nick = event['user'].nick
 
         # if swarm is enabled and we joined the swarm channel
         # we should start the vote-madness
-        if self.settings.swarm_enabled and (nick == self.net.mynick) and (channel == self.swarm.channel):
+        if self.settings.swarm_enabled and (nick == event['client'].net.mynick) and (event['channel'].name == self.swarm.channel):
             self.swarm.enable()
             wait_time = randrange(
                     self.swarm.min_vote_time,
@@ -234,33 +238,28 @@ class Landlady(Command):
         self.swarm.enable()
 
 
-#    def on_part(self, bot, userhost, channel, network):
-    def on_part(self, bot, userhost, channel, reason, network, **kwargs):
+    def on_part(self, event):
         """
         if someone parts the swarm channel we need to
         update the swarm list and recalculate ranges
         """
-        print "(swarm) on_part(self, bot, %s, %s, %s, %s, **kwargs)" % (
-                userhost,
-                channel,
-                reason,
-                network)
 
-        nick = self.llu.extract_nick(userhost)
-        if channel == self.swarm.channel:
-            if nick != self.net.mynick:
+        print "(swarm) on_part() chan: %s nick: %s" % (event['channel'].name, event['user'].nick)
+
+        nick = event['user'].nick
+        if event['channel'].name == self.swarm.channel:
+            if nick != event['client'].net.mynick:
                 self.swarm.disable()
             else:
                 self.swarm.remove_bot(nick)
 
-    def on_quit(self, bot, userhost, reason):
+    def on_quit(self, event):
         """
         if a bot quits we seed to update the swarm list
         and recalculate ranges
         """
-        nick = self.llu.extract_nick(userhost)
-        print "(swarm) %s quitted" % (nick)
-        self.swarm.remove_bot(nick)
+        print "(swarm) %s quitted" % (event['source_nick'])
+        self.swarm.remove_bot(event['source_nick'])
 
 
     def trig_banned(self, bot, source, target, trigger, argument, network):

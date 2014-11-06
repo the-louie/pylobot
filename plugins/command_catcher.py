@@ -78,7 +78,18 @@ class CommandCatcherPlugin(Plugin):
 			if trigger in favorites.FavoriteCommands.instance.favorites.keys():
 				return favorites.FavoriteCommands.instance.trig_fav(bot, source, target, 'fav', trigger + ' ' + arguments)
 
-	def on_privmsg(self, bot, source, target, message, network, **kwargs):
+	def on_privmsg(self, event):
+		bot = event['bot']
+		client = event['client']
+		source = event['source']
+		target = event['target']
+		message = event['message']
+
+		if target:
+			target_name = target.name
+		else:
+			target_name = source.nick
+
 		m = re.match(r'^(\S)((\S+)\s?(.*?))$', message)
 		if m and m.group(1) == bot.settings.trigger:
 			body = m.group(2)
@@ -89,7 +100,7 @@ class CommandCatcherPlugin(Plugin):
 				trigger = m.group(3)
 				arguments = m.group(4)
 
-			ret = self.on_command(bot, source, target, trigger, arguments, network)
+			ret = self.on_command(bot, source.nick, target_name, trigger, arguments, client.net.name)
 			if ret:
 				if type(ret) is not list:
 					ret = [ret]
@@ -100,7 +111,7 @@ class CommandCatcherPlugin(Plugin):
 							if target == source:
 								target = m.group(1)
 
-						bot.tell(network, target, ret_str)
+						client.tell(target, ret_str)
 
 
 	def on_load(self):

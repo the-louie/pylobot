@@ -12,243 +12,35 @@ import ssl
 
 from autoreloader.autoreloader import AutoReloader
 
+from ircobjects import User,Ban, Channel, Network
+
 def timestamp():
 	return datetime.datetime.now().strftime("[%H:%M:%S]")
 
-class User():
-	def __init__(self, nick, user, host):
-		self.nick = nick
-		self.user = user
-		self.host = host
-		self.nickuserhost = None
-
-		self.channel_list = []
-		self.__nuh()
-
-	def __nuh(self):
-		self.nickuserhost = "%s!%s@%s" % (self.nick, self.user, self.host)
-
-	def add_channel(self, channel):
-		if channel not in self.channel_list:
-			self.channel_list.append(channel)
-
-	def remove_channel(self, channel_name):
-		for channel in self.channel_list:
-			if channel.name == channel_name:
-				self.channel_list.remove(channel)
-				channel.remove_user(nick)
-				break
-
-	def change_nick(self, new_nick):
-		self.nick = new_nick
-		self.__nuh()
-
-	def in_channel(self, channel_name):
-		for channel in self.channel_list:
-			if channel_name == channel.name:
-				return True
-		return False
-
-	def channel_flags(self, channel_name):
-		for channel in self.channel_list:
-			if channel_name == channel.name:
-				return channel.get_flags(self.nick)
-		return None
-
-
-class Ban():
-	def __init__(self, banmask, banner_nick, timestamp):
-		self.banmask = banmask
-		self.banner_nick = banner_nick
-		self.timestamp = timestamp
-
-class Channel():
-	def __init__(self, channel_name):
-		self.name = channel_name
-		self.user_list = []
-		self.ban_list = []
-		self.flag_list = {}
-
-	def add_user(self, user):
-		if user not in self.user_list:
-			self.user_list.append(user)
-
-	def add_flags(self, nick, flags):
-		if flags == None:
-			return
-		self.flag_list[nick] = flags
-
-	def add_flag(self, nick, flag):
-		if flag == None:
-			return
-		if nick in self.flag_list:
-			self.flag_list[nick] += flag
-		else:
-			self.flag_list[nick] = flag
-
-	def remove_flag(self, nick, flag):
-		if flag == None:
-			return
-		if nick in self.flag_list:
-			self.flag_list = self.flag_list.replace(flag, '')
-
-	def get_flags(self, nick):
-		if nick in self.flag_list:
-			return self.flag_list[nick]
-		else:
-			return None
-
-	def remove_user(self, nick):
-		for user in user_list:
-			if user.nick == nick:
-				self.user_list.remove(user)
-
-		if nick in self.flag_list:
-			del self.flag_list[nick]
-
-	def add_ban(self, banmask, banner_nick, timestamp):
-		b = Ban(banmask, banner_nick, timestamp)
-		self.ban_list.append(b)
-
-	def remove_ban(self, banmask):
-		for ban in self.ban_list:
-			if ban.banmask == banmask:
-				self.ban_list.remove(ban)
-
-	def is_banned(self, banmask):
-		for ban in self.ban_list:
-			if ban.banmask == banmask:
-				return True
-		return False
-
-	def has_nick(self, nick):
-		for user in self.user_list:
-			if nick == user.nick:
-				return True
-		return False
-
-
-
-class Network():
-	def __init__(self, network_name, mynick=None):
-		self.name = network_name
-		self.mynick = mynick
-		self.all_users = []
-		self.all_channels = []
-
-	def set_nick(self, nick):
-		self.mynick = nick
-
-	def user_by_nick(self, nick):
-		for user in self.all_users:
-			if user.nick == nick:
-				return user
-		raise Exception('No such user, %s' % nick)
-
-	def channel_by_name(self, channel_name, create_if_new = True):
-		for channel in self.all_channels:
-			if channel.name == channel_name:
-				return channel
-		if create_if_new:
-			c = Channel(channel_name)
-			self.all_channels.append(c)
-			return c
-		else:
-			raise Exception('No such channel, %s' % channel_name)
-
-	def __add_user_to_channel(self, nick, channel_name, flags):
-		c = self.channel_by_name(channel_name)
-		u = self.user_by_nick(nick)
-
-		c.add_user(u)
-		c.add_flags(nick, flags)
-		u.add_channel(c)
-
-	def add_user(self, nickuserhost, channel_name = None, flags = None):
-		(nick, userhost) = nickuserhost.split('!')
-		(user, host) = userhost.split('@')
-
-		try:
-			u = self.user_by_nick(nick)
-		except Exception:
-			u = User(nick, user, host)
-		self.all_users.append(u)
-
-		if channel_name:
-			self.__add_user_to_channel(nick, channel_name, flags)
-
-	def del_user(self, nick):
-		try:
-			user = user_by_nick(nick)
-			self.all_users.remove(user)
-		except Exception:
-			pass
-
-
-	def nick_channels(self, nick):
-		try:
-			u = self.user_by_nick(nick)
-			return u.channel_list
-		except Exception:
-			return []
-
-	def part_nick(self, nick, channel_name):
-		try:
-			u = self.user_by_nick(nick)
-			u.remove_channel(channel_name)
-		except Exception:
-			pass
-
-		try:
-			c = self.channel_by_name(channel_name)
-			c.remove_user(nick)
-		except Exception:
-			pass
-
-	def user_change_nick(self, source_nick, new_nick):
-		try:
-			u = self.user_by_nick(source_nick)
-		except Exception:
-			return
-		u.change_nick(new_nick)
-
-	def channel_add_ban(self, channel_name, banmask, banner_nick, timestamp):
-		c = self.channel_by_name(channel_name)
-		c.add_ban(banmask, banner_nick, timestamp)
-
-	def channel_remove_ban(self, channel_name, banmask):
-		c = self.channel_by_name(channel_name)
-		c.remove_ban(banmask)
-
 class IRCClient(AutoReloader):
-	def __init__(self, address, port, nick, username, realname, network, password):
+	def __init__(self, address, port, nick, username, realname, network_name, password):
 		self.connected = False
 		self.active_session = False
-		# self.temp_nick_list_channel = None
-		# self.temp_nick_list = None
-		# self.nick_lists = {}
-		# self.users_list = {}
-		self.banlists = {}
 
-		self.isupport = {}
 		self.recv_buf = ''
 		self.callbacks = {}
 		self.throttle_errors = ['too fast, throttled','"host is trying to (re)connect too fast"']
 
-		self.lines = []
-
 		self.s = None
 
 		self.availible_bot_nicks = nick
-		self.nick = self.availible_bot_nicks[random.randrange(0,len(nick)-1)]
+		self.nick = self.availible_bot_nicks[random.randrange(0,len(self.availible_bot_nicks)-1)]
+
+		self.server_address = address
+		self.server_port = port
 		self.username = username or self.nick
 		self.realname = realname
-		self.network = network
+		self.network_name = network_name
 		self.password = password
 
 		self.swarm = None
 
-		self.net = Network(network)
+		self.net = Network(network_name)
 		self.net.mynick = self.nick
 
 		self.send_last_second = 0
@@ -284,10 +76,6 @@ class IRCClient(AutoReloader):
 			'352': self.on_whoreply,
 		}
 
-		self.server_address = address;
-		self.server_port = port;
-
-
 
 	def __execute_command_queue(self):
 		if len(self.command_queue) > 0:
@@ -307,16 +95,16 @@ class IRCClient(AutoReloader):
 		self.ping_count = 0
 
 		try:
-			if settings.Settings().networks[self.network].setdefault("ssl", False):
+			if settings.Settings().networks[self.network_name].setdefault("ssl", False):
 				self.s = ssl.wrap_socket(self.s)
 		except Exception, ex:
-			print timestamp() + " " + self.network + " Connection with SSL failed, " + str(ex)
+			print timestamp() + " " + self.network_name + " Connection with SSL failed, " + str(ex)
 
 		try:
 			self.s.connect((address, port))
 			self.connected = True
 		except Exception, ex:
-			print timestamp() + " " + self.network + " Connect failed, " + str(ex)
+			print timestamp() + " " + self.network_name + " Connect failed, " + str(ex)
 			self.connected = False
 
 		if self.connected:
@@ -326,22 +114,21 @@ class IRCClient(AutoReloader):
 
 	def log_line(self, line):
 		try:
-			print line
+			print timestamp() + " " + line
 		except UnicodeEncodeError:
 			# FIXME use bot.settings/rebuild settings
-			print line.encode(settings.Settings().recode_fallback, "replace")
-		self.lines.append(line)
+			print timestamp() + " " + line.encode(settings.Settings().recode_fallback, "replace")
 
 	def send(self, line):
 		self.send_queue.append(line+"\r\n")
 		self.real_send()
 
 	def real_send(self):
-		#self.log_line(timestamp() + " " + self.network + " SEND: send_queue length %s" % len(self.send_queue))
+		#self.log_line(self.network_name + " SEND: send_queue length %s" % len(self.send_queue))
 		current_second = int(time.time())
 
 		if not self.send_queue:
-			#self.log_line(timestamp() + " " + self.network + " SEND: Sendqueue empty")
+			#self.log_line(self.network_name + " SEND: Sendqueue empty")
 			return None
 
 		if self.send_last_second != current_second:
@@ -354,20 +141,20 @@ class IRCClient(AutoReloader):
 
 		if self.flood_protected:
 			if time.time() - self.send_time < 10:
-				#self.log_line(timestamp() + " " + self.network + " SEND: too early %s" % (time.time()-self.send_time))
+				#self.log_line(self.network_name + " SEND: too early %s" % (time.time()-self.send_time))
 				return None
 
 
 		if sum(self.send_queue_history) >= 4:
 			self.flood_protected = True
-			#self.log_line(timestamp() + " " + self.network + " SEND: flood_protected TRUE %s, current_second %d last_second %d" % (self.send_queue_history, current_second, self.send_last_second))
+			#self.log_line(self.network_name + " SEND: flood_protected TRUE %s, current_second %d last_second %d" % (self.send_queue_history, current_second, self.send_last_second))
 			return None
 		else:
-			#self.log_line(timestamp() + " " + self.network + " SEND: flood_protected FALSE")
+			#self.log_line(self.network_name + " SEND: flood_protected FALSE")
 			self.flood_protected = False
 
 		data = self.send_queue.pop(0)
-		self.log_line(timestamp() + " " + self.network + " SEND: (%d) %s" % (len(self.send_queue), str(data).replace("\r\n","")))
+		self.log_line(self.network_name + " SEND: (%d) %s" % (len(self.send_queue), str(data).replace("\r\n","")))
 
 		try:
 			sent =  self.s.send(data.encode(settings.Settings().recode_out_default_charset))
@@ -429,16 +216,27 @@ class IRCClient(AutoReloader):
 	def on_join(self, tupels):
 		source, channel = [tupels[1].replace(':',''), tupels[4]]
 
-		# if we join a channel send a WHO command to get hosts
 		nick = self.get_nick(source)
+
+		# add user to network
+		self.net.add_user(source, channel)
+
+		# if we join a channel send a WHO command to get hosts
 		if nick == self.nick:
 			self.send("WHO %s" % channel)
 			self.send("MODE %s +b" % channel)
-		else:
-			self.net.add_user(source, channel)
+
+		chan_obj = self.net.channel_by_name(channel)
+		user_obj = self.net.user_by_nick(nick)
+
+		event = {
+			'client': self,
+			'channel': chan_obj,
+			'user': user_obj
+		}
 
 		if "on_join" in self.callbacks:
-			self.callbacks["on_join"](self.network, source, channel)
+			self.callbacks["on_join"](event)
 
 	def on_kick(self, tupels):
 		source, channel = [tupels[1], tupels[4]]
@@ -449,25 +247,38 @@ class IRCClient(AutoReloader):
 			target_nick = m.group(1)
 
 		self.net.part_nick(target_nick, channel)
-		# if channel in self.nick_lists:
-		# 	if target_nick in self.nick_lists[channel]:
-		# 		del(self.nick_lists[channel][target_nick])
+
+
+		event = {
+			'client': self,
+			'channel': self.net.channel_by_name(channel),
+			'source_user': self.net.user_by_nick(source),
+			'target_user': self.net.user_by_nick(target_nick),
+			'reason': ''
+		}
 
 		if "on_kick" in self.callbacks:
-			self.callbacks["on_kick"](self.network, source, channel, target_nick)
+			#self.callbacks["on_kick"](self.network_name, source, channel, target_nick)
+			self.callbacks["on_kick"](event)
 
 	def on_nick(self, tupels):
 		source, new_nick = [tupels[1], tupels[4]]
-
-		if "on_nick_change" in self.callbacks:
-			self.callbacks["on_nick_change"](self.network, source, new_nick)
 
 		source_nick = self.get_nick(source)
 
 		try:
 			self.net.user_change_nick(source_nick, new_nick)
 		except Exception:
-			self.command_queue.append({'timestamp':time.time(), 'command': self.net.user_change_nick(source_nick, new_nick)})
+			pass
+
+		event = {
+			'client': self,
+			'user': self.net.user_by_nick(new_nick)
+		}
+
+		if "on_nick" in self.callbacks:
+			self.callbacks["on_nick"](event)
+
 
 	def on_mode(self, tupels):
 		if len(tupels) == 7:
@@ -475,6 +286,8 @@ class IRCClient(AutoReloader):
 		elif len(tupels) == 6:
 			source, channel, mode = [tupels[2],tupels[4],tupels[5].split(' ',2)[0]]
 			target = ''
+
+		source_nick = self.get_nick(source)
 
 		if mode == '+b':
 			self.net.channel_add_ban(channel, target, source, int(time.time()))
@@ -505,10 +318,16 @@ class IRCClient(AutoReloader):
 			except Exception:
 				pass
 
-
+		event = {
+			'client': self,
+			'channel': self.net.channel_by_name(channel),
+			'source_user': self.net.user_by_nick(source_nick),
+			'target_user': self.net.user_by_nick(target),
+			'mode': mode
+		}
 
 		if "on_mode" in self.callbacks:
-			self.callbacks["on_mode"](source, channel, mode, target, self.net)
+			self.callbacks["on_mode"](event)
 
 	def on_userhost(self, tupels):
 		message = tupels[5]
@@ -518,10 +337,19 @@ class IRCClient(AutoReloader):
 			self.callbacks["on_userhost"]()
 
 	def on_nick_inuse(self, tuples):
-		newnick = self.availible_bot_nicks[random.randrange(0,len(nick)-1)]
+		oldnick = self.net.mynick
+		newnick = self.availible_bot_nicks[random.randrange(0,len(self.availible_bot_nicks)-1)]
 		self.send("NICK " + newnick)
 		self.nick = newnick
 		self.net.mynick = newnick
+
+		event = {
+			'client': self,
+			'nick': oldnick
+		}
+
+		if "on_nick_inuse" in self.callbacks:
+			self.callbacks["on_nick_inuse"](event)
 
 	def on_part(self, tupels):
 		source, channel_name, reason = [tupels[1], tupels[4], tupels[5]]
@@ -529,11 +357,25 @@ class IRCClient(AutoReloader):
 		source_nick = self.get_nick(source)
 		self.net.part_nick(source_nick, channel_name)
 
-		if "on_part" in self.callbacks:
-			self.callbacks["on_part"](self.network, source, channel_name, reason)
-
 		if len(self.net.nick_channels(source_nick)) == 0:
 			self.net.del_user(source_nick)
+
+		try:
+			user_obj = self.net.user_by_nick(source_nick)
+		except:
+			user_obj = None
+
+		event = {
+			'client': self,
+			'user': user_obj,
+			'nick': source_nick,
+			'channel': self.net.channel_by_name(channel_name),
+			'reason': reason
+		}
+
+		if "on_part" in self.callbacks:
+			self.callbacks["on_part"](event)
+
 
 	def on_quit(self, tupels):
 		source = tupels[1]
@@ -544,8 +386,14 @@ class IRCClient(AutoReloader):
 
 		source_nick = self.get_nick(source)
 
+		event = {
+			'user': self.net.user_by_nick(source_nick),
+			'nick': source_nick,
+			'reason': reason
+		}
+
 		if "on_quit" in self.callbacks:
-			self.callbacks["on_quit"](self.network, source_nick, reason)
+			self.callbacks["on_quit"](event)
 
 		self.net.del_user(source_nick)
 
@@ -555,27 +403,68 @@ class IRCClient(AutoReloader):
 
 	def on_privmsg(self, tupels):
 		source, target, message = tupels[2], tupels[4], tupels[5]
+		source_nick = self.get_nick(source)
 
-		if target[0] != '#':
-			target = source
+		if source is not None:
+			source_nick = self.get_nick(source)
+
+			if target[0] == '#':
+				target = self.net.channel_by_name(target)
+			else:
+				target = None
+
+			source_user = self.net.user_by_nick(source_nick)
+		else:
+			source_user = None
+
+		event = {
+			"client": self,
+			"source": source_user,
+			"target": target,
+			"message": message
+		}
 
 		if "on_privmsg" in self.callbacks:
-			self.callbacks["on_privmsg"](self.network, source, target, message)
+			self.callbacks["on_privmsg"](event)
 
 	def on_notice(self, tupels):
 		source, target, message = tupels[2], tupels[4], tupels[5]
 
-		if target[0] != '#':
-			target = source
+		if source is not None:
+			source_nick = self.get_nick(source)
 
-		if "on_notice" in self.callbacks:
-			self.callbacks["on_notice"](self.network, source, target, message)
+			if target[0] == '#':
+				target = self.net.channel_by_name(target)
+			else:
+				target = None
+
+			source_user = self.net.user_by_nick(source_nick)
+		else:
+			source_user = None
+
+		event = {
+			"client": self,
+			"user": source_user,
+			"target": target,
+			"message": message
+		}
+
+		if "on_privmsg" in self.callbacks:
+			self.callbacks["on_notice"](event)
 
 	def on_connected(self, tupels):
 		self.active_session = True
 
+		print "add_user(%s!%s@%s)" % (self.nick,self.username,"localhost")
+		self.net.add_user("%s!%s@%s" % (self.nick,self.username,"localhost"))
+
+		event = {
+			"client": self,
+			"network": self.net
+		}
+
 		if "on_connected" in self.callbacks:
-			self.callbacks["on_connected"](self.network)
+			self.callbacks["on_connected"](event)
 
 	def on_isupport(self,tupels):
 		message = tupels[5][:tupels[5].index(':')]
@@ -590,28 +479,23 @@ class IRCClient(AutoReloader):
 				val = keyval[1]
 
 			isupport[key] = val
-		self.isupport.update(isupport)
+
+		self.net.isupport.update(isupport)
 
 	def on_banlist(self,tupels):
 		(channel, banmask, banner, timestamp) = tupels[5].split(' ')
 		self.net.channel_add_ban(channel, banmask, banner, timestamp)
-		# if channel not in self.banlists:
-		# 	self.banlists[channel] = {}
-		# self.banlists[channel][banmask] = (banner, timestamp)
-		#print "** BANLIST %s %s %s ==> %s" % (banmask, banner, timestamp, self.banlists[channel][banmask])
-
-		if "on_banlist" in self.callbacks:
-			self.callbacks["on_banlist"](self.network, channel, banmask, banner, timestamp)
 
 	def on_endofbanlist(self,tupels):
-		channel = tupels[5].split(' ')[0]
-		# if channel not in self.banlists:
-		# 	self.banlists[channel] = {}
-		# self.banlists[channel]['AGE'] = time.time()
+		channel_name = tupels[5].split(' ')[0]
 
-		#print "** END OF BANLIST %s ==> %s" % (channel, self.banlists[channel])
+		event = {
+			"client": self,
+			"channel": self.net.channel_by_name(channel_name)
+		}
+
 		if "on_endofbanlist" in self.callbacks:
-			self.callbacks["on_endofbanlist"](self.network, channel)
+			self.callbacks["on_endofbanlist"](event)
 
 	def on_error(self, tupels):
 		message = tupels[5]
@@ -634,8 +518,6 @@ class IRCClient(AutoReloader):
 
 		self.net.add_user("%s!%s@%s" % (nick,user,hostname), channel, prefix)
 
-		if "on_whoreply" in self.callbacks:
-			self.callbacks["on_whoreply"](self.network)
 
 	def idle_for(self, seconds):
 		self.wait_until = datetime.datetime.now() + datetime.timedelta(0, seconds)
@@ -643,7 +525,7 @@ class IRCClient(AutoReloader):
 	def tick(self):
 		now = datetime.datetime.now()
 		if self.wait_until and self.wait_until > now:
-			self.log_line(timestamp() + " " + self.network + " TICK DEFFERED: %s > %s" % (self.wait_until, now))
+			self.log_line(self.network_name + " TICK DEFFERED: %s > %s" % (self.wait_until, now))
 			return
 
 		if self.connected:
@@ -669,7 +551,7 @@ class IRCClient(AutoReloader):
 						self.recv_buf = line
 					else:
 						line = line.rstrip("\r\n")
-						#self.log_line(timestamp() + " " + self.network + " RECV: " + line)
+						#self.log_line(self.network_name + " RECV: " + line)
 						m = self.irc_message_pattern.match(line)
 						if m:
 							if m.group(3) in self.message_handlers:
@@ -684,7 +566,7 @@ class IRCClient(AutoReloader):
 					self.connected = False
 					print (error_code, error_message)
 		else:
-			self.log_line(timestamp() + " " + self.network + " TICK (not connected): %s > %s" % (self.wait_until, now))
+			self.log_line(self.network_name + " TICK (not connected): %s > %s" % (self.wait_until, now))
 			try:
 				self.connect(self.server_address, self.server_port)
 			except socket.error, (error_code, error_message):

@@ -13,35 +13,35 @@ class Plugin(object):
 	def on_modified_options(self):
 		pass
 
-	def timer_beat(self, bot, now, network, **kwargs):
+	def timer_beat(self, event):
 		""" Called every second. """
 		pass
 
-	def on_connected(self, bot, network, **kwargs):
+	def on_connected(self, event):
 		""" Called when an ircclient is connected to an IRC-server. """
 		pass
 
-	def on_join(self, bot, nick, channel, network, **kwargs):
+	def on_join(self, event):
 		""" Called when an ircclient joins a new channel. """
 		pass
 
-	def on_nick_changed(self, bot, old_nick, new_nick, network, **kwargs):
+	def on_changed(self, event):
 		""" Called when an ircclient receives a NICK change. """
 		pass
-		
-	def on_notice(self, bot, source, target, message, network, **kwargs):
+
+	def on_notice(self, event):
 		""" Called when an ircclient receives a NOTICE. """
 		pass
 
-	def on_part(self, bot, nick, channel, reason, network, **kwargs):
+	def on_part(self, event):
 		""" Called when an ircclient receives a PART. """
 		pass
 
-	def on_privmsg(self, bot, source, target, message, network, **kwargs):
+	def on_privmsg(self, event):
 		""" Called when an ircclient receives a PRIVMSG. """
 		pass
-		
-	def on_quit(self, bot, nick, reason, network, **kwargs):
+
+	def on_quit(self, event):
 		""" Called when an ircclient receives a QUIT. """
 		pass
 

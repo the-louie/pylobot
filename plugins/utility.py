@@ -75,7 +75,7 @@ def asciilize(aaostr):
 			source = source[1:]
 
 	return to
-	
+
 def get_all_subclasses(c):
 	l = [c]
 	for subclass in c.__subclasses__():
@@ -85,7 +85,7 @@ def get_all_subclasses(c):
 def timeout(f, timeout = 1, args = (), kwargs = {}):
 	def handler(signum, frame):
 		raise TimeoutException
-    
+
 	old = signal.signal(signal.SIGALRM, handler)
 	signal.alarm(timeout)
 
@@ -110,13 +110,13 @@ def extract_nick(host):
 def read_url(url):
 	import httpget
 	import socket
-	
+
 	# THIS AFFECTS SOCKETS GLOBALLY AND SHOULD _NOT_ BE USED!!!
 	timeout_time = socket.getdefaulttimeout()
 	socket.setdefaulttimeout(15)
 
 	data = httpget.read_url(url)
-		
+
 	# THIS AFFECTS SOCKETS GLOBALLY AND SHOULD _NOT_ BE USED!!!
 	socket.setdefaulttimeout(timeout_time)
 
@@ -138,7 +138,7 @@ def load_data(name, default_value=None):
 
 # FIXME use bot.settings/rebuild authentication
 def has_admin_privileges(source, target):
-	return source in settings.Settings().admin_adminnicks 
+	return source in settings.Settings().admin_adminnicks
 
 nbsp_latin1 = unescape("&nbsp;").encode("latin-1")
 nbsp_utf8 = unescape("&nbsp;").encode("utf-8")
@@ -148,7 +148,7 @@ def currency_conversion(amount, source, target):
 	response = read_url(url)
 	data = response["data"]
 	data = data.replace(nbsp_utf8, "") # Get rid of UTF-8 NBSP
-	
+
 	m = re.search('\<b\>\d+(\.\d+)? [^=]+ = (\d+(\.\d+)?)[^\<]+\<\/b\>', data)
 	if m:
 		return float(m.group(2))
