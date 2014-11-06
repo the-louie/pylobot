@@ -261,8 +261,8 @@ class Landlady(Command):
         if a bot quits we seed to update the swarm list
         and recalculate ranges
         """
-        print "(swarm) %s quitted" % (event['source_nick'])
-        self.swarm.remove_bot(event['source_nick'])
+        print "(swarm) %s quitted" % (event['nick'])
+        self.swarm.remove_bot(event['nick'])
 
 
     def trig_banned(self, bot, source, target, trigger, argument, network):
