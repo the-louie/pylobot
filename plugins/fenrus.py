@@ -21,7 +21,7 @@ class Fenrus(Command):
 	def on_connected(self, event):
 		self.client = event['client']
 		self.bot = event['bot']
-		self.swarm = self.bot.swarm
+		self.swarm = self.client.swarm
 		#self.client = bot.clients[network]
 		self.net = self.client.net
 		pass

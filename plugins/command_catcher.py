@@ -2,7 +2,6 @@
 import re
 import sys
 from plugins import Plugin
-import favorites
 import commands
 import utility
 import traceback
@@ -26,6 +25,7 @@ class CommandCatcherPlugin(Plugin):
 			target = event['target'].name
 		else:
 			target = source
+		swarm_match = event['swarm_match']
 
 		meth_name = 'trig_' + trigger.lower()
 		pairs = []
@@ -84,10 +84,6 @@ class CommandCatcherPlugin(Plugin):
 					return "Oops. Error logged."
 			else:
 				return "Bwaha. You can't trigger that!"
-
-		if not len(pairs):
-			if trigger in favorites.FavoriteCommands.instance.favorites.keys():
-				return favorites.FavoriteCommands.instance.trig_fav(bot, source, target, 'fav', trigger + ' ' + arguments)
 
 	def on_privmsg(self, event):
 		bot = event['bot']
