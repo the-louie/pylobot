@@ -18,23 +18,31 @@ class Fenrus(Command):
 
 		self.last_sync_time = 0
 
-	def on_connected(self, bot, network, **kwargs):
-		self.bot = bot
+	def on_connected(self, event):
+		self.client = event['client']
+		self.bot = event['bot']
 		self.swarm = self.bot.swarm
-		self.client = bot.clients[network]
+		#self.client = bot.clients[network]
 		self.net = self.client.net
+		pass
 
 	# if someone joins the master chan (and it isn't us) we should
 	# voice them in all the slave channels.
-	def on_join(self, bot, userhost, channel, network, **kwargs):
-		if  channel != self.master_channel:
-			return
-		targetnick = self.Util.extract_nick(userhost)
-		# print "(fenrus) %s joined masterchannel (%s)" % (targetnick, channel)
+	def on_join(self, event):
+		bot_obj = event['bot']
+		netw_obj = event['client'].net
+		chan_obj = event['channel']
+		user_obj = event['user']
 
-		if targetnick == self.net.mynick:
+		if  chan_obj.name != self.master_channel:
+			return
+		targetnick = user_obj.nick
+
+		print "(fenrus) %s joined masterchannel (%s)" % (targetnick, chan_obj.name)
+
+		if targetnick == netw_obj.mynick:
 			delay = float(randrange(1200, 3000)/10)
-			self.bot.add_timer(datetime.timedelta(0, delay), False, self.sync_channels)
+			bot_obj.add_timer(datetime.timedelta(0, delay), False, self.sync_channels)
 		else:
 			if self.Settings.swarm_enabled and not self.swarm.nick_matches(targetnick):
 				return False
@@ -42,7 +50,7 @@ class Fenrus(Command):
 			for slave_channel_name in self.slave_channels:
 				print "(fenrus) slave_channel_name: %s" % slave_channel_name
 				try:
-					slave_channel = self.net.channel_by_name(slave_channel_name)
+					slave_channel = netw_obj.channel_by_name(slave_channel_name)
 					if not slave_channel.has_nick(targetnick):
 						# print "(fenrus) %s not in %s" % (targetnick, slave_channel_name)
 						continue
@@ -53,10 +61,10 @@ class Fenrus(Command):
 					return
 
 				if not flags or ("+" not in flags and "@" not in flags):
-					# print "(fenrus) *** voice *** %s in %s" % (targetnick, slave_channel_name)
+					print "(fenrus) *** voice *** %s in %s" % (targetnick, slave_channel_name)
 					self.client.send('MODE %s +v %s' % (slave_channel_name, targetnick))
-				# else:
-				# 	print "(fenrus) no action, %s has %s in %s" % (targetnick, flags, slave_channel_name)
+				else:
+					print "(fenrus) no action, %s has %s in %s" % (targetnick, flags, slave_channel_name)
 
 	def sync_channels(self):
 		print "(fenrus) sync_channels"

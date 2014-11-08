@@ -16,7 +16,17 @@ class CommandCatcherPlugin(Plugin):
 	def __init__(self):
 		pass
 
-	def on_command(self, bot, source, target, trigger, arguments, network):
+	# def on_command(self, bot, source, target, trigger, arguments, network):
+	def on_command(self, event):
+		bot = event['bot']
+		source = event['source'].nick
+		trigger = event['trigger']
+		arguments = event['arguments']
+		if event['target']:
+			target = event['target'].name
+		else:
+			target = source
+
 		meth_name = 'trig_' + trigger.lower()
 		pairs = []
 
@@ -43,14 +53,15 @@ class CommandCatcherPlugin(Plugin):
 					source = m.group(1)
 
 				try:
-					# FIXME this is rather ugly, for compatiblity with pynik
-					if method.im_func.func_code.co_argcount == 7:
-						ret = utility.timeout(method, 10, (bot, source, target, trigger, arguments), {'network': network})
-					elif method.im_func.func_code.co_argcount == 6:
-						ret = utility.timeout(method, 10, (bot, source, target, trigger, arguments))
-					else:
-						raise NotImplementedError("Trigger '%s' argument count missmatch, was %s." % (
-								trigger, method.im_func.func_code.co_argcount))
+					ret = utility.timeout(method, 10, event)
+					# # FIXME this is rather ugly, for compatiblity with pynik
+					# if method.im_func.func_code.co_argcount == 7:
+					# 	ret = utility.timeout(method, 10, (bot, source, target, trigger, arguments), {'network': network})
+					# elif method.im_func.func_code.co_argcount == 6:
+					# 	ret = utility.timeout(method, 10, (bot, source, target, trigger, arguments))
+					# else:
+					# 	raise NotImplementedError("Trigger '%s' argument count missmatch, was %s." % (
+					# 			trigger, method.im_func.func_code.co_argcount))
 					return ret
 				except utility.TimeoutException:
 					return "Command '%s' took too long to execute." % trigger
@@ -78,7 +89,16 @@ class CommandCatcherPlugin(Plugin):
 			if trigger in favorites.FavoriteCommands.instance.favorites.keys():
 				return favorites.FavoriteCommands.instance.trig_fav(bot, source, target, 'fav', trigger + ' ' + arguments)
 
-	def on_privmsg(self, bot, source, target, message, network, **kwargs):
+	def on_privmsg(self, event):
+		bot = event['bot']
+		client = event['client']
+		source = event['source'].nick
+		if event['target']:
+			target = event['target'].name
+		else:
+			target = source
+		message = event['message']
+
 		m = re.match(r'^(\S)((\S+)\s?(.*?))$', message)
 		if m and m.group(1) == bot.settings.trigger:
 			body = m.group(2)
@@ -89,7 +109,10 @@ class CommandCatcherPlugin(Plugin):
 				trigger = m.group(3)
 				arguments = m.group(4)
 
-			ret = self.on_command(bot, source, target, trigger, arguments, network)
+			event['trigger'] = trigger
+			event['arguments'] = arguments
+			#ret = self.on_command(bot, source.nick, target_name, trigger, arguments, client.net.name)
+			ret = self.on_command(event)
 			if ret:
 				if type(ret) is not list:
 					ret = [ret]
@@ -100,7 +123,7 @@ class CommandCatcherPlugin(Plugin):
 							if target == source:
 								target = m.group(1)
 
-						bot.tell(network, target, ret_str)
+						client.tell(target, ret_str)
 
 
 	def on_load(self):

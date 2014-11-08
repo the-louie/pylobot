@@ -8,10 +8,10 @@ class QAuth(Command):
 		self.client = None
 		self.net = None
 
-	def on_connected(self, bot, network, **kwargs):
-		self.bot = bot
-		self.client = bot.clients[network]
-		self.net = self.client.net
+	def on_connected(self, event):
+		self.bot = event['bot']
+		self.client = event['client']
+		self.net = event['client'].net
 
 		if self.bot.settings.qauth:
 			qauth = self.bot.settings.qauth

@@ -24,6 +24,8 @@ class Landlady(Command):
         self.net = None
         self.client = None
 
+        self.vote_reply_timer = 0
+
         self.banlist_age = {}
         self.banlist_timestamp = {}
 
@@ -32,20 +34,20 @@ class Landlady(Command):
             self.swarm = Swarm()
             self.swarm.channel = self.settings.swarm['channel']
 
-    def on_connected(self, bot, network, **kwargs):
+    def on_connected(self, event):
         """
         set up stuff when we're connected, we need a ref to
         the bot, swarm and stuff.
         """
-        self.bot = bot
-        self.client = bot.clients[network]
+        self.bot = event['bot']
+        self.client = event['client']
         self.net = self.client.net
         self.bot.swarm = self.swarm
 
-        self.swarm.bot = bot
-        self.swarm.client = bot.clients[network]
+        self.swarm.bot = self.bot
+        self.swarm.client = self.client
 
-        self.llu.bot = bot
+        self.llu.bot = self.bot
         self.llu.client = self.client
 
         # purge old bans
@@ -57,15 +59,19 @@ class Landlady(Command):
             )
 
 
-    def on_privmsg(self, bot, source, target, message, network, **kwargs):
+    def on_privmsg(self, event):
         """
         Expose some functions
         """
+        source_nick = event['source']
+        target_chan = event['target']
+        message = event['message']
+
         if len(message) < 4:
             return
         if message.split(' ')[0][:3] == '.kb':
             argument = " ".join(message.split(' ')[1:])
-            self.trigger_kb(source, target, argument)
+            self.trigger_kb(source_nick, target_chan, argument)
 
     def debug_info(self, network = None):
         """trigger on debug_info signal and print debug info"""
@@ -73,7 +79,7 @@ class Landlady(Command):
         if self.swarm.enabled:
             print "(swarm) voteid: %s (%s)" % (
                     self.swarm.current_voteid, self.swarm.range)
-            print "(swarm) last: %s s ago" % (
+            print "(swarm) last vote: %s s ago" % (
                     time.time() - self.swarm.last_vote_time)
             print "(swarm) channel: %s" % (
                     self.swarm.channel)
@@ -152,13 +158,22 @@ class Landlady(Command):
         return None
 
 
-    def trig_vote(self, bot, source, target, trigger, argument, network):
+    def trig_vote(self, event):
         """if someone else votes we should answer asap"""
+        bot = event['bot']
+        source = event['source'].nick
+        if event['target']:
+            target = event['target'].name
+        else:
+            target = source
+        trigger = event['trigger']
+        arguments = event['arguments']
+
         print "trig_vote(self,bot,%s,%s,%s,%s,network)" % (
                 source,
                 target,
                 trigger,
-                argument
+                arguments
             )
         if not self.settings.swarm_enabled:
             return
@@ -167,7 +182,7 @@ class Landlady(Command):
             print "ERROR: Swarm vote in none swarm channel (%s)" % target
             return False
 
-        (incoming_vote_id, incoming_vote) = self.swarm.parse_vote(argument, source)
+        (incoming_vote_id, incoming_vote) = self.swarm.parse_vote(arguments, source)
         if (incoming_vote_id is None) or (incoming_vote is None):
             print "ERROR: error in vote arguments"
             return False
@@ -177,22 +192,32 @@ class Landlady(Command):
 
         self.swarm.votes[incoming_vote_id][source] = incoming_vote
 
-        if incoming_vote_id != self.swarm.current_voteid:
+        if not self.vote_reply_timer and incoming_vote_id != self.swarm.current_voteid:
             # new vote, we need to vote
+            self.vote_reply_timer = True
             self.swarm.unvoted_id = incoming_vote_id
-            self.send_vote()
+            wait_time = randrange(0,5)
+            self.bot.add_timer(
+                    datetime.timedelta(0, wait_time),
+                    False,
+                    self.delayed_vote
+                )
+
+        elif self.vote_reply_timer:
+            # already a timer running
+            print "(swarm) triggered vote but vote_reply_timer is %s" % (self.vote_reply_timer)
         else:
             # we already voted on this
             self.swarm.range = self.swarm.get_swarm_range() # update ranges
             self.swarm.unvoted_id = None # we have no unvoted votes
 
-    def on_join(self, bot, userhost, channel, network, **kwargs):
+    def on_join(self, event):
         """If we join the swarm.channel we need to vote"""
-        nick = self.llu.extract_nick(userhost)
+        nick = event['user'].nick
 
         # if swarm is enabled and we joined the swarm channel
         # we should start the vote-madness
-        if self.settings.swarm_enabled and (nick == self.net.mynick) and (channel == self.swarm.channel):
+        if self.settings.swarm_enabled and (nick == event['client'].net.mynick) and (event['channel'].name == self.swarm.channel):
             self.swarm.enable()
             wait_time = randrange(
                     self.swarm.min_vote_time,
@@ -207,7 +232,7 @@ class Landlady(Command):
 
     def reoccuring_vote(self):
         """send out vote every once in a while, if we havn't voted just"""
-        if time.time() - self.swarm.last_vote_time < self.swarm.min_vote_time:
+        if (time.time() - self.swarm.last_vote_time) < self.swarm.min_vote_time:
             print "(swarm) reoccuring_vote(): throttling vote. %s < %s" % (
                     time.time() - self.swarm.last_vote_time,
                     self.swarm.min_vote_time)
@@ -215,6 +240,10 @@ class Landlady(Command):
         self.swarm.unvoted_id = randrange(0, 65535)
         self.send_vote()
 
+
+    def delayed_vote(self):
+        self.vote_reply_timer = False
+        self.send_vote()
 
     def send_vote(self):
         """create and send vote to swarm-channel"""
@@ -231,50 +260,57 @@ class Landlady(Command):
                 self.swarm.current_voteid,
                 self.swarm.random,
                 self.swarm.vote_hash))
+
+        self.swarm.last_vote_time = time.time()
+
         self.swarm.enable()
 
 
-#    def on_part(self, bot, userhost, channel, network):
-    def on_part(self, bot, userhost, channel, reason, network, **kwargs):
+    def on_part(self, event):
         """
         if someone parts the swarm channel we need to
         update the swarm list and recalculate ranges
         """
-        print "(swarm) on_part(self, bot, %s, %s, %s, %s, **kwargs)" % (
-                userhost,
-                channel,
-                reason,
-                network)
 
-        nick = self.llu.extract_nick(userhost)
-        if channel == self.swarm.channel:
-            if nick != self.net.mynick:
+        print "(swarm) on_part() chan: %s nick: %s" % (event['channel'].name, event['user'].nick)
+
+        nick = event['user'].nick
+        if event['channel'].name == self.swarm.channel:
+            if nick == event['client'].net.mynick:
                 self.swarm.disable()
             else:
                 self.swarm.remove_bot(nick)
 
-    def on_quit(self, bot, userhost, reason):
+    def on_quit(self, event):
         """
         if a bot quits we seed to update the swarm list
         and recalculate ranges
         """
-        nick = self.llu.extract_nick(userhost)
-        print "(swarm) %s quitted" % (nick)
-        self.swarm.remove_bot(nick)
+        print "(swarm) %s quitted" % (event['nick'])
+        self.swarm.remove_bot(event['nick'])
 
 
-    def trig_banned(self, bot, source, target, trigger, argument, network):
+    def trig_banned(self, event):
         """
         a bot banned someone, we should add this to our internal list
         so if the user rejoins we know that he/she is banned.
         """
+        bot = event['bot']
+        source = event['source'].nick
+        if event['target']:
+            target = event['target'].name
+        else:
+            target = source
+        trigger = event['trigger']
+        arguments = event['arguments']
+
         if not self.settings.swarm_enabled or not self.swarm.enabled:
             return
 
         if target != self.swarm.channel:
             return False
 
-        arguments = argument.split(' ')
+        arguments = arguments.split(' ')
         arguments_decoded = []
         try:
             for arg in arguments:
@@ -285,7 +321,7 @@ class Landlady(Command):
                     source,
                     target,
                     trigger,
-                    argument,
+                    arguments,
                     network)
             print "EXCEPTION %s %s" % (estr.__class__.__name__, estr)
             print " -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  - "

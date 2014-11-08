@@ -111,7 +111,6 @@ class Swarm():
         if self.current_voteid not in self.votes:
             self.votes[self.current_voteid] = {}
         self.votes[self.current_voteid][mynick] = self.random
-        self.last_vote_time = time.time()
         self.range = self.get_swarm_range()
         self.unvoted_id = None
         self.vote_hash = self.create_vote_hash(self.current_voteid, self.random, mynick)
@@ -194,46 +193,13 @@ class Swarm():
 
         for channel_name in self.opchans:
             channel = self.client.net.channel_by_name(channel_name)
+            if not channel.has_op(self.client.nick): # only check channels we have op in
+                continue
             for botnick in self.get_swarm_members():
-                if channel.has_nick(botnick):
+                if botnick == self.client.nick: # don't try to op myself
+                    continue
+                if channel.has_nick(botnick) and (not channel.has_op(botnick) and not channel.has_voice(botnick)):
                     self.client.send("MODE %s +o %s" % (channel_name, botnick))
-
-
-    # def sync_channels(self):
-    #     print "(fenrus) sync_channels"
-    #     delay = float(randrange(3000, 12000)/10)
-    #     self.bot.add_timer(datetime.timedelta(0, delay), False, self.sync_channels)
-
-    #     # don't sync too often
-    #     if time.time() - self.last_sync_time < 300:
-    #         return
-    #     self.last_sync_time = time.time()
-
-    #     try:
-    #         master_channel = self.net.channel_by_name(self.master_channel)
-    #         master_users = master_channel.user_list
-    #     except Exception, e:
-    #         print "(fenrus) ERROR: %s" % e
-    #         return
-
-    #     for master_user in master_users:
-    #         if self.Settings.swarm_enabled and not self.swarm.nick_matches(master_user.nick):
-    #             continue
-
-    #         for slave_channel_name in self.slave_channels:
-    #             slave_channel = self.net.channel_by_name(slave_channel_name)
-    #             if not slave_channel.has_nick(master_user.nick):
-    #                 # print "(fenrus) %s not in %s" % (master_user.nick, slave_channel_name)
-    #                 continue
-    #             # print "(fenrus) master_user.channel_flags(%s): %s" % (slave_channel_name, master_user.channel_flags(slave_channel_name))
-    #             flags = master_user.channel_flags(slave_channel_name)
-    #             if not flags or ("+" not in flags and "@" not in flags):
-    #                 #print "(fenrus) *** voice *** %s in %s" % (master_user.nick, slave_channel_name)
-    #                 self.client.send('MODE %s +v %s' % (slave_channel_name, master_user.nick))
-    #             # else:
-    #             #   print "(fenrus) no action, %s has %s in %s" % (master_user.nick, flags, slave_channel_name)
-
-
 
 
 
