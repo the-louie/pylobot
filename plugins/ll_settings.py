@@ -13,12 +13,6 @@ class landladySettings:
 	swarm_enabled = True
 
 	default = {
-		'swarm': {
-			'channel': '#dreamhack.swarm',
-			'secret': 'O=DVHk!D4"48h/g)f4R/sjF#p5FB4976hT#fBGsd8',
-			'opchans': ['#dreamhack','#dreamhack.info','#dreamhack.trade']
-		},
-
 		'kb_settings': {
 				'command_chan': '#dreamhack.c&c',
 				'master_chan' : '#dreamhack.op2',
