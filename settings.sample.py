@@ -12,6 +12,11 @@ class Settings(AutoReloader):                      # these two lines
 				"username": None,
 				"realname": "PyIrkBot",
 				"channels": [["#a_channel"],["#another_channel"],["#channel_with_key","secretkey"]],
+				"swarm": {
+					"channel": "#bot_swarm_channel",
+					"secret": "H3KJ9/NS8(L6SN2HI",
+					"opchans": ["#a_channel","#another_channel","#channel_with_key"]
+				},
 		     }
 		}
 
