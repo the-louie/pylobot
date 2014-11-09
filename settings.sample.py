@@ -3,22 +3,20 @@ from autoreloader.autoreloader import AutoReloader # Do not remove
 class Settings(AutoReloader):                      # these two lines
 
 	# Sample config, all options are mandatory
-	networks = {
-		"quakenet": {
-				"server_address": "irc.server.com",
-				#"server_password": "mypassword", # optional, omit if unused.
-				"server_port": 6667,
-				"nick": ["nickname_a", "nickname_b", "nickname_c"],
-				"username": None,
-				"realname": "PyIrkBot",
-				"channels": [["#a_channel"],["#another_channel"],["#channel_with_key","secretkey"]],
-				"swarm": {
-					"channel": "#bot_swarm_channel",
-					"secret": "H3KJ9/NS8(L6SN2HI",
-					"opchans": ["#a_channel","#another_channel","#channel_with_key"]
-				},
-		     }
-		}
+	server: {
+			"server_address": "irc.server.com",
+			#"server_password": "mypassword", # optional, omit if unused.
+			"server_port": 6667,
+			"nick": ["nickname_a", "nickname_b", "nickname_c"],
+			"username": None,
+			"realname": "PyIrkBot",
+			"channels": [["#a_channel"],["#another_channel"],["#channel_with_key","secretkey"]],
+			"swarm": {
+				"channel": "#bot_swarm_channel",
+				"secret": "H3KJ9/NS8(L6SN2HI",
+				"opchans": ["#a_channel","#another_channel","#channel_with_key"]
+			},
+	     }
 
 	# if we supply qauth via command line deffer joins
 	# until we are mode +x
