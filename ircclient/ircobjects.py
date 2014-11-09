@@ -127,7 +127,7 @@ class Channel():
 				return True
 		return False
 
-class Network():
+class Server():
 	def __init__(self, network_name, mynick=None):
 		self.name = network_name
 		self.mynick = mynick

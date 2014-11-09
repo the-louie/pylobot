@@ -17,7 +17,7 @@ except ImportError:
 import ircbot
 
 bot = ircbot.IRCBot(settings.Settings())
-bot.add_timer(datetime.timedelta(0, 600), True, bot.send_all_networks, "PING :iamabanana")
+bot.add_timer(datetime.timedelta(0, 600), True, bot.send, "PING :iamabanana")
 
 # Add paths for debugger
 sys.path += [os.path.join(sys.path[0], "ircclient"), os.path.join(sys.path[0], "plugins")]

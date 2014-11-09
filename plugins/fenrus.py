@@ -23,14 +23,14 @@ class Fenrus(Command):
 		self.bot = event['bot']
 		self.swarm = self.client.swarm
 		#self.client = bot.clients[network]
-		self.net = self.client.net
+		self.server = self.client.server
 		pass
 
 	# if someone joins the master chan (and it isn't us) we should
 	# voice them in all the slave channels.
 	def on_join(self, event):
 		bot_obj = event['bot']
-		netw_obj = event['client'].net
+		netw_obj = event['client'].server
 		chan_obj = event['channel']
 		user_obj = event['user']
 
@@ -77,7 +77,7 @@ class Fenrus(Command):
 		self.last_sync_time = time.time()
 
 		try:
-			master_channel = self.net.channel_by_name(self.master_channel)
+			master_channel = self.server.channel_by_name(self.master_channel)
 			master_users = master_channel.user_list
 		except Exception, e:
 			print "(fenrus) ERROR: %s" % e
@@ -88,7 +88,7 @@ class Fenrus(Command):
 				continue
 
 			for slave_channel_name in self.slave_channels:
-				slave_channel = self.net.channel_by_name(slave_channel_name)
+				slave_channel = self.server.channel_by_name(slave_channel_name)
 				if not slave_channel.has_nick(master_user.nick):
 					# print "(fenrus) %s not in %s" % (master_user.nick, slave_channel_name)
 					continue

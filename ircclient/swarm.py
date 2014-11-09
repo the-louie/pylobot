@@ -13,6 +13,9 @@ class Swarm():
     if a action is to be taken depending on a keyword
     """
     def __init__(self, bot, client):
+        self.bot = bot
+        self.client = client
+
         self.min_vote_time = MIN_VOTE_TIME
 
         self.range = (65535, 0)
@@ -24,9 +27,9 @@ class Swarm():
         self.unvoted_id = None
         self.vote_hash = ""
 
-        self.channel = "#dreamhack.swarm"
-        self.secret = 'O=DVHk!D4"48h/g)f4R/sjF#p5FB4976hT#fBGsd8'
-        self.opchans = ['#dreamhack','#dreamhack.info','#dreamhack.trade']
+        self.channel = self.bot.settings.server['swarm']['channel'] #"#dreamhack.swarm"
+        self.secret = self.bot.settings.server['swarm']['secret'] # 'O=DVHk!D4"48h/g)f4R/sjF#p5FB4976hT#fBGsd8'
+        self.opchans = self.bot.settings.server['swarm']['opchans'] # ['#dreamhack','#dreamhack.info','#dreamhack.trade']
 
         self.next_vote_time = 0
         self.last_vote_time = 0
@@ -34,9 +37,6 @@ class Swarm():
         self.vote_reply_timer = 0
 
         self.reoccuring_voting_enabled = False
-
-        self.bot = bot
-        self.client = client
 
         self.swarm_op_timer = None
 
@@ -192,7 +192,7 @@ class Swarm():
             return
 
         for channel_name in self.opchans:
-            channel = self.client.net.channel_by_name(channel_name)
+            channel = self.client.server.channel_by_name(channel_name)
             if not channel.has_op(self.client.nick): # only check channels we have op in
                 continue
             for botnick in self.get_swarm_members():
@@ -315,7 +315,7 @@ class Swarm():
             print "(swarm) send_vote(): swarm not enabled. Escaping."
             return
 
-        self.create_vote(self.client.net.mynick)
+        self.create_vote(self.client.server.mynick)
         self.client.tell(self.channel,"%svote %d %d %s" % (
                 self.bot.settings.trigger,
                 self.current_voteid,

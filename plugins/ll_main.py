@@ -20,7 +20,7 @@ class Landlady(Command):
         self.llu = LLUtils()
         self.settings = self.llu.Settings
         self.bot = None
-        self.net = None
+        self.server = None
         self.client = None
 
         self.vote_reply_timer = 0
@@ -35,7 +35,7 @@ class Landlady(Command):
         """
         self.bot = event['bot']
         self.client = event['client']
-        self.net = self.client.net
+        self.server = self.client.server
 
         self.llu.bot = self.bot
         self.llu.client = self.client
@@ -100,12 +100,12 @@ class Landlady(Command):
             return False
 
         # Get a banmask that's unique
-        banmask = self.llu.create_banmask(self.net, targetnick)
+        banmask = self.llu.create_banmask(self.server, targetnick)
         if not banmask:
             return "Couldn't find user %s" % (targetnick)
 
         # Add punishfactor
-        factor = self.llu.get_punish_factor(banmask, self.net.name)
+        factor = self.llu.get_punish_factor(banmask, self.server.name)
         bantime = int(bantime) * int(factor)
 
         # Kickban the user in all channels
@@ -120,7 +120,6 @@ class Landlady(Command):
                 )
 
         self.llu.save_kickban(
-                self.net.name,
                 targetnick,
                 banmask,
                 reason,
@@ -183,7 +182,7 @@ class Landlady(Command):
     #     if cmd in self.settings.kb_commands.keys():
     #         reason = self.settings.kb_commands[cmd][1]
     #         self.llu.save_kickban(
-    #             self.net.name,
+    #             self.server.name,
     #             targetnick,
     #             banmask,
     #             reason,
