@@ -7,7 +7,7 @@ import copy
 import time
 import datetime
 import base64
-from ll_swarm import Swarm
+#from ll_swarm import Swarm
 
 class Settings():
 	def __init__(self):
@@ -20,7 +20,7 @@ class Settings():
 class LLUtils():
 	def __init__(self):
 		self.Settings = Settings()
-		self.Swarm = Swarm
+		#self.Swarm = Swarm
 
 		self.bot = None
 		self.client = None
@@ -54,7 +54,7 @@ class LLUtils():
 
 		# on first run we might have to create the banmemory table
 		try:
-			self.dbcur.execute("CREATE TABLE IF NOT EXISTS landlady_banmem (timestamp INT, network TEXT, targetnick TEXT, targethost TEXT, command TEXT, sourcenick TEXT, duration INT)")
+			self.dbcur.execute("CREATE TABLE IF NOT EXISTS landlady_banmem (timestamp INT,  targetnick TEXT, targethost TEXT, command TEXT, sourcenick TEXT, duration INT)")
 		except Exception, e:
 			print "ERROR: couln't create table, %s" % e
 
@@ -105,9 +105,9 @@ class LLUtils():
 		self.Settings.kb_settings['ban_timemul'] = DefaultSettings.default['kb_settings']['ban_timemul'].split(',')
 		self.Settings.kb_settings['child_chans'] = DefaultSettings.default['kb_settings']['child_chans'].split(' ')
 
-		self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
-		self.Settings.swarm_enabled = copy.deepcopy(DefaultSettings.swarm_enabled)
-		self.Swarm.channel = DefaultSettings.default['swarm']['channel']
+		# self.Settings.swarm = copy.deepcopy(DefaultSettings.default['swarm'])
+		# self.Settings.swarm_enabled = copy.deepcopy(DefaultSettings.swarm_enabled)
+		# self.Swarm.channel = DefaultSettings.default['swarm']['channel']
 
 
 	'''
@@ -294,8 +294,8 @@ class LLUtils():
 
 		return banmask
 
-	def get_punish_factor(self, banmask, network):
-		self.dbcur.execute("SELECT count(*) FROM landlady_banmem WHERE targethost = ? AND network = ?", (banmask, network))
+	def get_punish_factor(self, banmask):
+		self.dbcur.execute("SELECT count(*) FROM landlady_banmem WHERE targethost = ?", (banmask))
 		try:
 			count = int(self.dbcur.fetchone()[0])
 		except Exception, e:
@@ -309,12 +309,10 @@ class LLUtils():
 
 
 
-	def save_kickban(self, network, targetnick, banmask, reason, duration, sourcenick, command):
-		#print "save_kickban(self, %s, %s, %s, %s, %s, %s, %s)" % (network, targetnick, banmask,reason, duration, sourcenick,command)
+	def save_kickban(self, targetnick, banmask, reason, duration, sourcenick, command):
 		# save kb to memory
 		self.dbcur.execute("""INSERT INTO landlady_banmem (
 				timestamp,
-				network,
 				targetnick,
 				targethost,
 				command,
@@ -322,7 +320,7 @@ class LLUtils():
 				duration)
 			VALUES (
 				datetime('now'),?,?,?,?,?,?)""",
-			(network, targetnick, banmask, command, sourcenick, duration)
+			(targetnick, banmask, command, sourcenick, duration)
 		)
 		self.dbcon.commit()
 
@@ -347,12 +345,12 @@ class LLUtils():
 			unbanlist.append(row[0])
 
 		for channel in self.Settings.kb_settings['child_chans']:
-			c = self.client.net.channel_by_name(channel)
+			c = self.client.server.channel_by_name(channel)
 			for banmask in unbanlist:
 				if c.is_banned(banmask):
 					#print "\t%s: %s" % (channel, banmask)
 					c.remove_ban(banmask)
-					self.unban(self.client.net.name, channel, banmask)
+					self.unban(self.client.server.name, channel, banmask)
 				th = (banmask,)
 				self.dbcur.execute("DELETE FROM landlady_banmem WHERE targethost LIKE ?", th)
 
@@ -369,20 +367,20 @@ class LLUtils():
 		result.append(base64.b64encode(str(cmd)))
 		self.client.tell(self.Settings.swarm['channel'], '.banned '+" ".join(result))
 
-	def unban(self, network, channel, banmask):
+	def unban(self, channel, banmask):
 		#print "DEBUG: Unbanning %s in %s" % (banmask, channel)
 		self.client.send('MODE %s -b %s' % (channel, banmask))
 
-	def add_to_banlist(self, network, channel, sourcenick, banmask):
-		bl = self.bot.clients[network].banlists
+	def add_to_banlist(self, channel, sourcenick, banmask):
+		bl = self.bot.client.banlists
 		if channel in bl:
-			self.bot.clients[network].banlists[channel][banmask] = (sourcenick,time.time())
+			self.bot.clients.banlists[channel][banmask] = (sourcenick,time.time())
 
-	def remove_from_banlist(self, network, channel, banmask):
-		bl = self.bot.clients[network].banlists
+	def remove_from_banlist(self, channel, banmask):
+		bl = self.bot.client.banlists
 		if channel in bl:
 			if banmask in bl[channel]:
-				del(self.bot.clients[network].banlists[channel][banmask])
+				del(self.bot.client.banlists[channel][banmask])
 
 	def extract_nick(self, host):
 		m = re.search('^:?(.+)!', host)
