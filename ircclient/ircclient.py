@@ -481,9 +481,7 @@ class IRCClient(AutoReloader):
     def on_connected(self, tupels):
         self.active_session = True
 
-        print "add_user(%s!%s@%s)" % (self.nick,self.username,"localhost")
-        self.server.add_user("%s!%s@%s" % (self.nick,self.username,"localhost"))
-        self.me = self.server.user_by_nick(self.nick)
+        self.send('WHO %s' % (self.server.mynick))
 
         event = {
             "client": self,
@@ -544,6 +542,10 @@ class IRCClient(AutoReloader):
         server = reply[3]
         nick = reply[4]
         prefix = reply[5].replace('H','')
+
+        if nick == self.server.mynick:
+            self.server.add_user("%s!%s@%s" % (nick,user,hostname))
+            self.me = self.server.user_by_nick(self.nick)
 
         self.server.add_user("%s!%s@%s" % (nick,user,hostname), channel, prefix)
 
