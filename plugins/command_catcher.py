@@ -88,6 +88,8 @@ class CommandCatcherPlugin(Plugin):
 	def on_privmsg(self, event):
 		bot = event['bot']
 		client = event['client']
+		if event['source'] is None:
+			return
 		source = event['source'].nick
 		if event['target']:
 			target = event['target'].name

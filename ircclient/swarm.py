@@ -98,9 +98,11 @@ class Swarm():
         return swarm_range
 
     def create_vote_hash(self, voteid, random, nick):
-        md5hash = hashlib.md5()
-        md5hash.update(self.secret + str(voteid) + str(random) + str(nick) + self.secret)
-        return md5hash.hexdigest()
+        timebit = int(round(int(datetime.datetime.now().strftime("%s"))/300))
+        #timebit = 0 # FIXME: this should not be 0 but the above line
+        instring = self.secret + str(voteid) + str(random) + str(nick) + str(timebit)
+        outstring = hashlib.sha512(instring + hashlib.sha512(instring).digest()).hexdigest()
+        return outstring
 
     def create_vote(self, mynick):
         """
@@ -226,6 +228,10 @@ class Swarm():
         if incoming_vote_id not in self.votes:
             self.votes[incoming_vote_id] = {}
 
+        if incoming_vote in self.votes[incoming_vote_id].values():
+            print "ERROR: save vote value twice"
+            return False
+
         self.votes[incoming_vote_id][source] = incoming_vote
 
         if not self.vote_reply_timer and incoming_vote_id != self.current_voteid:
@@ -262,6 +268,7 @@ class Swarm():
                 int(self.min_vote_time/2)
             )
         print "(swarm) joined swarm channel, voting in %s seconds" % (wait_time)
+        self.next_vote_time = time.time() + wait_time
         self.bot.add_timer(
                 datetime.timedelta(0, wait_time),
                 False,
@@ -299,6 +306,7 @@ class Swarm():
                 self.min_vote_time*2
             )
         print "(swarm) just voted, voting in %s seconds" % (wait_time)
+        self.next_vote_time = time.time() + wait_time
         self.bot.add_timer(
                 datetime.timedelta(0, wait_time),
                 False,
