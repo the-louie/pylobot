@@ -39,7 +39,7 @@ class Fenrus(Command):
 			delay = float(randrange(1200, 3000)/10)
 			bot_obj.add_timer(datetime.timedelta(0, delay), False, self.sync_channels)
 		else:
-			if self.Settings.swarm_enabled and not self.swarm.nick_matches(targetnick):
+			if self.swarm.enabled and not self.swarm.nick_matches(targetnick):
 				return False
 
 			for slave_channel_name in self.slave_channels:
@@ -79,7 +79,7 @@ class Fenrus(Command):
 			return
 
 		for master_user in master_users:
-			if self.Settings.swarm_enabled and not self.swarm.nick_matches(master_user.nick):
+			if self.swarm.enabled and not self.swarm.nick_matches(master_user.nick):
 				continue
 
 			for slave_channel_name in self.slave_channels:
