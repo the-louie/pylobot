@@ -13,6 +13,9 @@ class User():
 	def __nuh(self):
 		self.nickuserhost = "%s!%s@%s" % (self.nick, self.user, self.host)
 
+	def __str__(self):
+		return "%s!%s@%s in %d channels" % (self.nick, self.user, self.host, len(self.channel_list))
+
 	def add_channel(self, channel):
 		if channel not in self.channel_list:
 			self.channel_list.append(channel)
