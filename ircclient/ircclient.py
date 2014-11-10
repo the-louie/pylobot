@@ -368,7 +368,7 @@ class IRCClient(AutoReloader):
         except:
             user_obj = None
 
-        if channel == self.swarm.channel:
+        if channel_name == self.swarm.channel:
             if source_nick == self.server.mynick:
                 # we left the swarmchan, disable the swarm
                 self.swarm.disable()
@@ -437,7 +437,7 @@ class IRCClient(AutoReloader):
             if target == self.swarm.channel and message.split(' ')[0] == '.vote':
                 self.swarm.incoming_vote(source_nick, target, message.split(' ')[1:])
         except Exception, e:
-            print "exception: %s -- %s" % (e.__class__.name, e)
+            print "exception: %s -- %s" % (e.__class__.__name__, e)
             pass
 
         event = {

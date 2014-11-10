@@ -10,9 +10,6 @@ class Fenrus(Command):
 	def __init__(self):
 		self.bot = None
 
-		self.Util = LLUtils()
-		self.Settings = self.Util.Settings
-
 		self.master_channel = '#dreamhack.crew'
 		self.slave_channels = ['#dreamhack', '#dreamhack.info']
 
@@ -22,9 +19,7 @@ class Fenrus(Command):
 		self.client = event['client']
 		self.bot = event['bot']
 		self.swarm = self.client.swarm
-		#self.client = bot.clients[network]
 		self.server = self.client.server
-		pass
 
 	# if someone joins the master chan (and it isn't us) we should
 	# voice them in all the slave channels.

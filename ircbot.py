@@ -169,11 +169,13 @@ class IRCBot(AutoReloader):
         """trigger on debug_info signal and print debug info"""
         print "(swarm) enabled: %s" % self.client.swarm.enabled
         if self.client.swarm.enabled:
-            print "(swarm) old voted: %s" % (self.client.swarm.votes)
+            #print "(swarm) old votes: %s" % (self.client.swarm.votes)
             print "(swarm) voteid: %s (%s)" % (
                     self.client.swarm.current_voteid, self.client.swarm.range)
             print "(swarm) last vote: %s s ago" % (
-                    time.time() - self.client.swarm.last_vote_time)
+                    int(round(time.time() - self.client.swarm.last_vote_time)))
+            print "(swarm) next vote in: %s s" % (
+                    int(round(self.client.swarm.next_vote_time - time.time())))
             print "(swarm) channel: %s" % (
                     self.client.swarm.channel)
             print "(swarm) votes: %s" % (

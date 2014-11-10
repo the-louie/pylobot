@@ -137,7 +137,7 @@ class Swarm():
 
         calc_hash = self.create_vote_hash(vote_id, vote_value, sourcenick)
         if calc_hash != vote_hash_str:
-            print "(swarm) vote hash missmatch '%s' '%s'" % (calc_hash, vote_hash)
+            print "(swarm) vote hash missmatch:\n\tcalc: %s\n\tinco: %s\n" % (calc_hash, vote_hash_str)
             return (None, None)
 
         return (vote_id, vote_value)
