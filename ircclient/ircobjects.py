@@ -36,6 +36,7 @@ class User():
 		self.nick = nick
 		self.user = user
 		self.host = host
+		self.__nuh()
 
 	def in_channel(self, channel_name):
 		for channel in self.channel_list:
@@ -142,6 +143,7 @@ class Server():
 		self.all_users = []
 		self.all_channels = []
 		self.isupport = {}
+		self.me = None
 
 	def set_nick(self, nick):
 		self.mynick = nick
@@ -188,6 +190,9 @@ class Server():
 			self.all_users.append(u)
 		else:
 			u.update(nick, user, host)
+
+		if nick == self.mynick:
+			self.me = u
 
 		if channel_name:
 			self.__add_user_to_channel(nick, channel_name, flags)

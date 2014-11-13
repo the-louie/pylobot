@@ -29,9 +29,6 @@ class IRCClient(AutoReloader):
 
         self.s = None
 
-        self.swarm = Swarm(bot, self)
-        self.swarm_enabled = True
-
         self.availible_bot_nicks = nick
         self.nick = self.availible_bot_nicks[random.randrange(0,len(self.availible_bot_nicks)-1)]
 
@@ -76,6 +73,10 @@ class IRCClient(AutoReloader):
             '368': self.on_endofbanlist,
             '352': self.on_whoreply,
         }
+
+        self.swarm = Swarm(bot, self)
+        self.swarm_enabled = True
+
 
 
     def __execute_command_queue(self):
@@ -447,7 +448,7 @@ class IRCClient(AutoReloader):
 
         try:
             if target == self.swarm.channel and message.split(' ')[0] == '.vote':
-                self.swarm.incoming_vote(source_nick, target, message.split(' ')[1:])
+                self.swarm.incoming_vote(source_user, target, message.split(' ')[1:])
         except Exception, e:
             print "exception: %s -- %s" % (e.__class__.__name__, e)
             pass

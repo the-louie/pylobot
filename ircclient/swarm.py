@@ -15,6 +15,7 @@ class Swarm():
     def __init__(self, bot, client):
         self.bot = bot
         self.client = client
+        self.server = client.server
 
         self.min_vote_time = MIN_VOTE_TIME
 
@@ -104,10 +105,10 @@ class Swarm():
         swarm_range = (lowest, highest)
         return swarm_range
 
-    def create_vote_hash(self, voteid, random, nick):
+    def create_vote_hash(self, voteid, random, nickuserhost):
         timebit = int(round(int(datetime.datetime.now().strftime("%s"))/300))
         #timebit = 0 # FIXME: this should not be 0 but the above line
-        instring = self.secret + str(voteid) + str(random) + str(nick) + str(timebit)
+        instring = self.secret + str(voteid) + str(random) + str(nickuserhost) + str(timebit)
         outstring = hashlib.sha512(instring + hashlib.sha512(instring).digest()).hexdigest()
         return outstring
 
@@ -122,7 +123,7 @@ class Swarm():
         self.votes[self.current_voteid][mynick] = self.random
         self.range = self.get_swarm_range()
         self.unvoted_id = None
-        self.vote_hash = self.create_vote_hash(self.current_voteid, self.random, mynick)
+        self.vote_hash = self.create_vote_hash(self.current_voteid, self.random, self.server.me.nickuserhost)
 
     def parse_vote(self, arguments, sourcenick):
         """
@@ -220,7 +221,7 @@ class Swarm():
         """if someone else votes we should answer asap"""
 
         print "(swarm) trig_vote(self,%s,%s,%s)" % (
-                source,
+                source.nick,
                 target,
                 " ".join(arguments)
             )
@@ -232,19 +233,19 @@ class Swarm():
             print "ERROR: Swarm vote in none swarm channel (%s)" % target
             return False
 
-        (incoming_vote_id, incoming_vote) = self.parse_vote(arguments, source)
-        if (incoming_vote_id is None) or (incoming_vote is None):
+        (incoming_vote_id, incoming_vote_random) = self.parse_vote(arguments, source.nickuserhost)
+        if (incoming_vote_id is None) or (incoming_vote_random is None):
             print "ERROR: error in vote arguments"
             return False
 
         if incoming_vote_id not in self.votes:
             self.votes[incoming_vote_id] = {}
 
-        if incoming_vote in self.votes[incoming_vote_id].values():
+        if incoming_vote_random in self.votes[incoming_vote_id].values():
             print "ERROR: save vote value twice"
             return False
 
-        self.votes[incoming_vote_id][source] = incoming_vote
+        self.votes[incoming_vote_id][source.nick] = incoming_vote_random
 
         if not self.vote_reply_timer and incoming_vote_id != self.current_voteid:
             # new vote, we need to vote
