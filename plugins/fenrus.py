@@ -84,6 +84,9 @@ class Fenrus(Command):
 
 			for slave_channel_name in self.slave_channels:
 				slave_channel = self.server.channel_by_name(slave_channel_name)
+				if not slave_channel.has_op(self.server.mynick):
+					#print "(fenrus) I'm not op in %s, continuing" % (slave_channel.name)
+					continue
 				if not slave_channel.has_nick(master_user.nick):
 					#print "(fenrus) %s not in %s, continuing" % (master_user.nick, slave_channel_name)
 					continue
