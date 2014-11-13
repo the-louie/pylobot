@@ -53,35 +53,48 @@ class Landlady(Command):
         """
         Expose some functions
         """
-        source_nick = event['source']
-        target_chan = event['target']
+        source_nick = event['source'].nick
+        target_chan = event['target'].name
         message = event['message']
 
         if len(message) < 4:
             return
         if message.split(' ')[0][:3] == '.kb':
             argument = " ".join(message.split(' ')[1:])
-            self.trigger_kb(source_nick, target_chan, argument)
+            self.trigger_kb(source_nick, target_chan, argument, event['swarm_match'])
 
 
 
     # def trigger_kb(self, trigger_nick, trigger_channel, argument, swarm_match):
-    def trigger_kb(self, event):
-        trigger_nick = event['source'].nick
-        trigger_channel = event['target'].name
-        argument = event['arguments']
-        swarm_match = event['swarm_match']
+    def trigger_kb(self, trigger_nick, trigger_channel, argument, swarm_match):
+        print "trigger_kb(self, %s, %s, %s)" % (trigger_nick, trigger_channel, argument)
 
         """Take care of any incoming kick-ban requests"""
         if trigger_channel != self.settings.kb_settings['command_chan']:
             print "ERROR: kb-request from outside %s" % (
                     self.settings.kb_settings['command_chan'])
-            return False
+            return
+
+        if swarm_match is not None and swarm_match == True:
+            print "(kb) swarm_match: %s, exiting" % (swarm_match)
+            return
+
+        # Get a banmask that's unique
+        banmask = self.llu.create_banmask(self.server, targetnick)
+        if not banmask:
+            print "Couldn't find user %s" % (targetnick)
+            return
+
+        # Add punishfactor
+        factor = self.llu.get_punish_factor(banmask)
 
         (cmd, reason, targetnick, bantime) = self.llu.parse_kb_arguments(
                 argument,
-                trigger_nick
+                trigger_nick,
+                factor
             )
+        bantime = int(bantime) * int(factor)
+        print "(kb) cmd: %s, reason: %s, targetnick: %s, factor: %s, bantime: %s" % (cmd, reason, targetnick, factor, bantime)
         if not cmd:
             print "ERROR: Unknown command, %s,%s,%s." % (
                     trigger_nick,

@@ -121,7 +121,7 @@ class LLUtils():
 
 
 	'''
-	def parse_kb_arguments(self, argument, source):
+	def parse_kb_arguments(self, argument, source, factor):
 		cmd = reason = targetnick = bantime = bantime_int = None
 
 		try:
@@ -153,6 +153,8 @@ class LLUtils():
 		if not bantime_int:
 			bantime_int = int(self.Settings.kb_commands[cmd][0])
 
+		bantime_int *= factor
+
 		reason = "%s (%d) /%s" % (self.Settings.kb_commands[cmd][1], bantime_int, source.split('!')[0])
 
 		return (cmd,reason,targetnick,bantime_int)
@@ -182,7 +184,7 @@ class LLUtils():
 
 
 	'''
-	def match_banmask(self, net, targetnick, banmask, channel_name):
+	def match_banmask(self, server, targetnick, banmask, channel_name):
 		matches = []
 
 		# escape banmask to re
@@ -194,10 +196,10 @@ class LLUtils():
 		banmask = banmask.replace('}','\}')
 		banmask = banmask.replace('*','.*')
 
-		try:
-			channel = net.channel_by_name(channel_name)
-		except Exception, e:
-			print "ERROR: %s" % e
+
+		channel = server.channel_by_name(channel_name)
+		if channel is None:
+			print "ERROR: No channel by name %s" % channel_name
 			return 99
 
 		for user in channel.user_list:
@@ -214,13 +216,12 @@ class LLUtils():
 
 		return matches
 
-	def create_banmask(self, net, targetnick):
-		#print "create_banmask(net, %s)" % targetnick
-		try:
-			u = net.user_by_nick(targetnick)
-		except Exception, e:
+	def create_banmask(self, server, targetnick):
+		#print "create_banmask(server, %s)" % targetnick
+		u = server.user_by_nick(targetnick)
+		if u is None:
 			# FIXME: get correct banmask adhoc
-			print "ERROR: %s" % e
+			print "ERROR: No user with nick %s" % targetnick
 			return None
 
 		user = u.user
@@ -233,14 +234,14 @@ class LLUtils():
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
 				banmask = '*!*@%s' % '.'.join(host.split('.'))
-				hits += len(self.match_banmask(net, targetnick, banmask, channel))
+				hits += len(self.match_banmask(server, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
 				banmask = '*!*%s*@%s' % (user, '.'.join(host.split('.')))
-				hits += len(self.match_banmask(net, targetnick, banmask, channel))
+				hits += len(self.match_banmask(server, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -255,7 +256,7 @@ class LLUtils():
 					banmask = '*!*@%s' % host
 				else:
 					banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
-				hits += len(self.match_banmask(net, targetnick, banmask, channel))
+				hits += len(self.match_banmask(server, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -266,7 +267,7 @@ class LLUtils():
 					banmask = '*!*%s@%s' % (user,host)
 				else:
 					banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
-				hits += len(self.match_banmask(net, targetnick, banmask, channel))
+				hits += len(self.match_banmask(server, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -277,7 +278,7 @@ class LLUtils():
 					banmask = '*!*@%s' % host
 				else:
 					banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
-				hits += len(self.match_banmask(net, targetnick, banmask, channel))
+				hits += len(self.match_banmask(server, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -285,7 +286,7 @@ class LLUtils():
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
 				banmask = '*!*@%s' % (host)
-				hits += len(self.match_banmask(net, targetnick, banmask, channel))
+				hits += len(self.match_banmask(server, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
@@ -295,7 +296,8 @@ class LLUtils():
 		return banmask
 
 	def get_punish_factor(self, banmask):
-		self.dbcur.execute("SELECT count(*) FROM landlady_banmem WHERE targethost = ?", (banmask))
+		print "get_punish_factor(self, %s)" % banmask
+		self.dbcur.execute("SELECT count(*) FROM landlady_banmem WHERE targethost = ?", (banmask,))
 		try:
 			count = int(self.dbcur.fetchone()[0])
 		except Exception, e:
@@ -319,7 +321,7 @@ class LLUtils():
 				sourcenick,
 				duration)
 			VALUES (
-				datetime('now'),?,?,?,?,?,?)""",
+				datetime('now'),?,?,?,?,?)""",
 			(targetnick, banmask, command, sourcenick, duration)
 		)
 		self.dbcon.commit()
@@ -328,9 +330,9 @@ class LLUtils():
 		# for channel in self.Settings.kb_settings['child_chans']:
 		# 	client.send('MODE %s +b %s' % (channel, banmask))
 		# 	client.send('KICK %s %s :%s' % (channel, targetnick, reason))
-		# 	self.add_to_banlist(network, channel, sourcenick, banmask)
-		# 	self.bot.add_timer(datetime.timedelta(0, duration), False, self.unban, network, channel, banmask)
-		# 	self.bot.add_timer(datetime.timedelta(0, duration), False, self.remove_from_banlist, network, channel, banmask)
+		# 	self.add_to_banlist(serverwork, channel, sourcenick, banmask)
+		# 	self.bot.add_timer(datetime.timedelta(0, duration), False, self.unban, serverwork, channel, banmask)
+		# 	self.bot.add_timer(datetime.timedelta(0, duration), False, self.remove_from_banlist, serverwork, channel, banmask)
 
 	def purge_kickbans(self):
 		#print "PURGING OLD BANS"
