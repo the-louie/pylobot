@@ -211,7 +211,7 @@ class Swarm():
                 if botnick == self.client.nick: # don't try to op myself
                     #print "(swarm) * it's ME! eject eject eject"
                     continue
-                if channel.has_nick(botnick) and (not channel.has_op(botnick) and not channel.has_voice(botnick)):
+                if channel.has_nick(botnick) and not channel.has_op(botnick):
                     self.client.send("MODE %s +o %s" % (channel_name, botnick))
                 #print "(swarm) %s in_channel: %s, has_op: %s, has_voice: %s" % (botnick, channel.has_nick(botnick), channel.has_op(botnick), channel.has_voice(botnick))
 
