@@ -283,7 +283,6 @@ class IRCClient(AutoReloader):
 
 
     def on_mode(self, tupels):
-        print "on_mode(self, %s)" % (str(tupels))
         if len(tupels) == 7:
             source, channel, mode, target = [tupels[2],tupels[4],tupels[5].split(' ',2)[0],tupels[5].split(' ',2)[1]]
         elif len(tupels) == 6:
@@ -300,7 +299,7 @@ class IRCClient(AutoReloader):
 
         source_nick = self.get_nick(source)
 
-        print "on_mode(%s, %s, %s, %s)" % (source, channel, mode, target)
+        #print "on_mode(%s, %s, %s, %s)" % (source, channel, mode, target)
 
         if channel != "":
             if mode == '+b':
