@@ -94,22 +94,13 @@ class Landlady(Command):
                     targetnick,
                     bantime
                 )
-            return None
-
-        if swarm_match is not None and swarm_match == True:
-            return False
-
-        # Get a banmask that's unique
-        banmask = self.llu.create_banmask(self.server, targetnick)
-        if not banmask:
-            return "Couldn't find user %s" % (targetnick)
-
-        # Add punishfactor
-        factor = self.llu.get_punish_factor(banmask, self.server.name)
-        bantime = int(bantime) * int(factor)
+            return
 
         # Kickban the user in all channels
         for channel in self.settings.kb_settings['child_chans']:
+            print '(kb) >>> MODE %s +b %s' % (channel, banmask)
+            print '(kb) >>> KICK %s %s :%s' % (channel, targetnick, reason)
+
             self.client.send('MODE %s +b %s' % (channel, banmask))
             self.client.send('KICK %s %s :%s' % (channel, targetnick, reason))
             self.bot.add_timer(
@@ -139,7 +130,8 @@ class Landlady(Command):
 
         return None
 
-
+    def dbg(self, text):
+        print text
 
     # def trig_banned(self, event):
     #     """

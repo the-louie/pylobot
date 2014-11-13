@@ -65,7 +65,7 @@ class Fenrus(Command):
 		print "(fenrus) sync_channels"
 		delay = float(randrange(3000, 12000)/10)
 		self.bot.add_timer(datetime.timedelta(0, delay), False, self.sync_channels)
-
+		#print "(fenrus) - next sync: %d" % (int(round(time.time() + delay)))
 		# don't sync too often
 		if time.time() - self.last_sync_time < 300:
 			return
@@ -75,7 +75,7 @@ class Fenrus(Command):
 			master_channel = self.server.channel_by_name(self.master_channel)
 			master_users = master_channel.user_list
 		except Exception, e:
-			print "(fenrus) ERROR: %s" % e
+			print "(fenrus) ERROR: %s %s" % (e.__class__.__name__, e)
 			return
 
 		for master_user in master_users:
@@ -85,9 +85,9 @@ class Fenrus(Command):
 			for slave_channel_name in self.slave_channels:
 				slave_channel = self.server.channel_by_name(slave_channel_name)
 				if not slave_channel.has_nick(master_user.nick):
-					# print "(fenrus) %s not in %s" % (master_user.nick, slave_channel_name)
+					#print "(fenrus) %s not in %s, continuing" % (master_user.nick, slave_channel_name)
 					continue
-				# print "(fenrus) master_user.channel_flags(%s): %s" % (slave_channel_name, master_user.channel_flags(slave_channel_name))
+				#print "(fenrus) master_user.channel_flags(%s): %s" % (slave_channel_name, master_user.channel_flags(slave_channel_name))
 				flags = master_user.channel_flags(slave_channel_name)
 				if not flags or ("+" not in flags and "@" not in flags):
 					#print "(fenrus) *** voice *** %s in %s" % (master_user.nick, slave_channel_name)

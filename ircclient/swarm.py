@@ -41,16 +41,23 @@ class Swarm():
         self.swarm_op_timer = None
 
     def nick_matches(self, targetnick):
+        #print "(swarm) nick_matches(self, %s)" % (targetnick)
         if not self.enabled:
+            print "(swarm) not enabled, exiting"
             return None
         if targetnick is None:
+            print "(swarm) target nick is None, exiting"
             return True
+
         md5hash = hashlib.md5()
         md5hash.update(targetnick)
         hashid = int(md5hash.hexdigest()[0:2], 16)
+        #print "(swarm) hashid is %d, my range is %d-%d" % (hashid, self.range[0], self.range[1])
         if not self.range[0] <= hashid < self.range[1]:
+            #print "(swarm) *** FALSE ***"
             return False
         else:
+            #print "(swarm) *** TRUE ***"
             return True
 
     def enable(self):
@@ -195,13 +202,18 @@ class Swarm():
 
         for channel_name in self.opchans:
             channel = self.client.server.channel_by_name(channel_name)
+            #print "(swarm) * checking %s" % channel_name
             if not channel.has_op(self.client.nick): # only check channels we have op in
+                #print "(swarm) * Not op in %s" % channel_name
                 continue
             for botnick in self.get_swarm_members():
+                #print "(swarm) * checking %s" % botnick
                 if botnick == self.client.nick: # don't try to op myself
+                    #print "(swarm) * it's ME! eject eject eject"
                     continue
                 if channel.has_nick(botnick) and (not channel.has_op(botnick) and not channel.has_voice(botnick)):
                     self.client.send("MODE %s +o %s" % (channel_name, botnick))
+                #print "(swarm) %s in_channel: %s, has_op: %s, has_voice: %s" % (botnick, channel.has_nick(botnick), channel.has_op(botnick), channel.has_voice(botnick))
 
 
     def incoming_vote(self, source, target, arguments):
