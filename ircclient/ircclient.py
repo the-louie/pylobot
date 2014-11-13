@@ -292,40 +292,44 @@ class IRCClient(AutoReloader):
             else:
                 target = ''
 
+        if channel[0] != '#':
+            target = channel
+            channel = ""
 
 
         source_nick = self.get_nick(source)
 
         print "on_mode(%s, %s, %s, %s)" % (source, channel, mode, target)
 
-        if mode == '+b':
-            self.server.channel_add_ban(channel, target, source, int(time.time()))
-        elif mode == '-b':
-            self.server.channel_remove_ban(channel, target)
-        elif mode == '+v':
-            try:
-                c = self.server.channel_by_name(channel)
-                c.add_flag(target, '+')
-            except Exception:
-                pass
-        elif mode == '-v':
-            try:
-                c = self.server.channel_by_name(channel)
-                c.remove_flag(target, '+')
-            except Exception:
-                pass
-        elif mode == '+o':
-            try:
-                c = self.server.channel_by_name(channel)
-                c.add_flag(target, '@')
-            except Exception:
-                pass
-        elif mode == '-o':
-            try:
-                c = self.server.channel_by_name(channel)
-                c.remove_flag(target, '@')
-            except Exception:
-                pass
+        if channel != "":
+            if mode == '+b':
+                self.server.channel_add_ban(channel, target, source, int(time.time()))
+            elif mode == '-b':
+                self.server.channel_remove_ban(channel, target)
+            elif mode == '+v':
+                try:
+                    c = self.server.channel_by_name(channel)
+                    c.add_flag(target, '+')
+                except Exception:
+                    pass
+            elif mode == '-v':
+                try:
+                    c = self.server.channel_by_name(channel)
+                    c.remove_flag(target, '+')
+                except Exception:
+                    pass
+            elif mode == '+o':
+                try:
+                    c = self.server.channel_by_name(channel)
+                    c.add_flag(target, '@')
+                except Exception:
+                    pass
+            elif mode == '-o':
+                try:
+                    c = self.server.channel_by_name(channel)
+                    c.remove_flag(target, '@')
+                except Exception:
+                    pass
 
         event = {
             'client': self,
