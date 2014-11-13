@@ -298,17 +298,6 @@ class Swarm():
 
     def reoccuring_vote(self):
         """send out vote every once in a while, if we havn't voted just"""
-        if (time.time() - self.last_vote_time) < self.min_vote_time:
-            print "(swarm) reoccuring_vote(): throttling vote. %s < %s" % (
-                    time.time() - self.last_vote_time,
-                    self.min_vote_time)
-            return
-        if not self.enabled:
-            print "(swarm) reoccuring_vote() when swarm is disabled, bailing."
-            return
-
-        self.unvoted_id = randrange(0, 65535)
-        self.send_vote()
 
         # bootstrap the next vote to get better control instead of using the
         # built in reoccuring timer. main reason is that we want the first
@@ -324,6 +313,20 @@ class Swarm():
                 False,
                 self.reoccuring_vote
             )
+
+        if (time.time() - self.last_vote_time) < self.min_vote_time:
+            print "(swarm) reoccuring_vote(): throttling vote. %s < %s" % (
+                    time.time() - self.last_vote_time,
+                    self.min_vote_time)
+            return
+        if not self.enabled:
+            print "(swarm) reoccuring_vote() when swarm is disabled, bailing."
+            return
+
+        self.unvoted_id = randrange(0, 65535)
+        self.send_vote()
+
+
 
 
     def send_vote(self):
