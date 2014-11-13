@@ -232,15 +232,23 @@ class LLUtils():
 
 		if self.is_numeric(host):
 			hits = 0
+
+
 			for channel in self.Settings.kb_settings['child_chans']:
-				banmask = '*!*@%s' % '.'.join(host.split('.'))
+				banmask = '*!*@%s' % '.'.join(host.split('.')[:3])+'.*'
+				hits += len(self.match_banmask(server, targetnick, banmask, channel))
+			if hits == 0:
+				return banmask
+
+			for channel in self.Settings.kb_settings['child_chans']:
+				banmask = '*!*@%s' % host
 				hits += len(self.match_banmask(server, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
 
 			hits = 0
 			for channel in self.Settings.kb_settings['child_chans']:
-				banmask = '*!*%s*@%s' % (user, '.'.join(host.split('.')))
+				banmask = '*!*%s*@%s' % (user, host)
 				hits += len(self.match_banmask(server, targetnick, banmask, channel))
 			if hits == 0:
 				return banmask
