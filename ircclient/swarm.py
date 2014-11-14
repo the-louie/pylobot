@@ -293,7 +293,7 @@ class Swarm():
         if someone parts the swarm channel we need to
         update the swarm list and recalculate ranges
         """
-        print "(swarm) on_part() chan: %s nick: %s" % (event['channel'].name, event['user'].nick)
+        print "(swarm) swarmchan_part(%s)" % (nick)
         if nick in self.get_swarm_members():
             self.remove_bot(nick)
 
