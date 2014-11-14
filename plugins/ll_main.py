@@ -31,11 +31,12 @@ class Landlady(Command):
     def on_connected(self, event):
         """
         set up stuff when we're connected, we need a ref to
-        the bot, swarm and stuff.
+        the bot, client, swarm and stuff.
         """
         self.bot = event['bot']
-        self.client = event['client']
+        self.client = self.bot.client
         self.server = self.client.server
+        self.swarm = self.client.swarm
 
         self.llu.bot = self.bot
         self.llu.client = self.client
@@ -53,8 +54,12 @@ class Landlady(Command):
         """
         Expose some functions
         """
-        source_nick = event['source'].nick
-        target_chan = event['target'].name
+        if event['source'] is not None:
+            source_nick = event['source'].nick
+            target_chan = event['target'].name
+        else:
+            source_nick = event['target'].nick
+            target_chan = None
         message = event['message']
 
         if len(message) < 4:
@@ -75,71 +80,63 @@ class Landlady(Command):
                     self.settings.kb_settings['command_chan'])
             return
 
-        if swarm_match is not None and swarm_match == True:
-            print "(kb) swarm_match: %s, exiting" % (swarm_match)
-            return
+        arguments = argument.split(' ')
+        if len(arguments) == 2:
+            cmd = arguments[0]
+            target_nick = arguments[1]
+            bantime = None
+        elif len(arguments) == 3:
+            cmd = arguments[0]
+            target_nick = arguments[1]
+            if arguments[2].isdigit():
+                bantime = int(arguments[2])
+            else:
+                bantime = None
+        else:
+            print "(kb) ERROR: wrong number of argumens (%d) for: %s" % (len(arguments), argument)
+            return None
 
-        # Get a banmask that's unique
-        banmask = self.llu.create_banmask(self.server, targetnick)
-        if not banmask:
-            print "Couldn't find user %s" % (targetnick)
-            return
 
-        # Add punishfactor
-        factor = self.llu.get_punish_factor(banmask)
+        if self.swarm.enabled and not self.swarm.nick_matches(target_nick):
+            print "(kb) '%s' don't match"
+            return None
 
-        (cmd, reason, targetnick, bantime) = self.llu.parse_kb_arguments(
-                argument,
-                trigger_nick,
-                factor
+        user = self.client.server.user_by_nick(target_nick)
+        userlist = self.client.server.channel_by_name(trigger_channel).user_list
+
+        parsed_kb = self.llu.parse_kb_arguments(
+                user,
+                userlist,
+                cmd,
+                target_nick,
+                bantime,
+                trigger_nick
             )
-        bantime = int(bantime) * int(factor)
-        print "(kb) cmd: %s, reason: %s, targetnick: %s, factor: %s, bantime: %s" % (cmd, reason, targetnick, factor, bantime)
-        if not cmd:
+        if not parsed_kb:
             print "ERROR: Unknown command, %s,%s,%s." % (
                     trigger_nick,
                     trigger_channel,
                     argument
                 )
-            print "     : Unknown command, %s,%s,%s,%s." % (
-                    cmd,
-                    reason,
-                    targetnick,
-                    bantime
-                )
-            return
+            return None
+
+        reason = parsed_kb['reason']
+        bantime = parsed_kb['bantime']
+        banmask = parsed_kb['banmask']
 
         # Kickban the user in all channels
         for channel in self.settings.kb_settings['child_chans']:
             print '(kb) >>> MODE %s +b %s' % (channel, banmask)
-            print '(kb) >>> KICK %s %s :%s' % (channel, targetnick, reason)
+            print '(kb) >>> KICK %s %s :%s' % (channel, target_nick, reason)
 
             self.client.send('MODE %s +b %s' % (channel, banmask))
-            self.client.send('KICK %s %s :%s' % (channel, targetnick, reason))
+            self.client.send('KICK %s %s :%s' % (channel, target_nick, reason))
             self.bot.add_timer(
                     datetime.timedelta(0, bantime),
                     False,
                     self.client.send,
                     'MODE %s -b %s' % (channel, banmask)
                 )
-
-        self.llu.save_kickban(
-                targetnick,
-                banmask,
-                reason,
-                bantime,
-                trigger_nick,
-                cmd
-            )
-        # if self.settings.swarm_enabled:
-        #     self.llu.announce_kickban(
-        #             targetnick,
-        #             banmask,
-        #             reason,
-        #             bantime,
-        #             trigger_nick,
-        #             cmd
-        #         )
 
         return None
 

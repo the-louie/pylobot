@@ -16,7 +16,7 @@ class landladySettings:
 		'kb_settings': {
 				'command_chan': '#dreamhack.c&c',
 				'master_chan' : '#dreamhack.op2',
-				'child_chans' : '#dreamhack.trade',
+				'child_chans' : '#dreamhack.trade #dreamhack #dreamhack.info',
 				'ban_timemul' : '1,2,4,8,72,504,2016',
 				'kick_tagline': 'Please read the rules at http://irc.dhcrew.se',
 		},
