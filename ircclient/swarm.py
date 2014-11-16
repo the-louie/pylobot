@@ -3,7 +3,7 @@ import time
 import hashlib
 import datetime
 
-MIN_VOTE_TIME = 300
+MIN_VOTE_TIME = 1600
 
 class Swarm():
     """
