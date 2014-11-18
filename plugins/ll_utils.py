@@ -341,8 +341,7 @@ class LLUtils():
                     #print "\t%s: %s" % (channel, banmask)
                     c.remove_ban(banmask)
                     self.unban(channel, banmask)
-                th = (banmask,)
-                self.dbcur.execute("DELETE FROM landlady_banmem WHERE targethost LIKE ?", th)
+                self.dbcur.execute("DELETE FROM landlady_banmem WHERE targethost LIKE ?", (banmask,))
 
             self.dbcon.commit()
 
