@@ -432,6 +432,7 @@ class IRCClient(AutoReloader):
     def on_privmsg(self, tupels):
         source, target, message = tupels[2], tupels[4], tupels[5]
         source_nick = self.get_nick(source)
+        #print "on_privmsg(self): %s : %s : %s" % (source, target, message)
 
         if source is not None:
             source_nick = self.get_nick(source)
@@ -453,7 +454,9 @@ class IRCClient(AutoReloader):
             if target == self.swarm.channel and message.split(' ')[0] == '.verifail':
                 self.swarm.incoming_verification(source_user, target, message.split(' ')[1:])
         except Exception, e:
-            print "exception: %s -- %s" % (e.__class__.__name__, e)
+            print "exception:\n%s -- %s" % (e.__class__.__name__, e)
+            print tupels
+            print "--"
             pass
 
         event = {
