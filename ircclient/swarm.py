@@ -2,6 +2,7 @@ from random import randrange
 import time
 import hashlib
 import datetime
+import operator
 
 MIN_VOTE_TIME = 1600
 
@@ -27,7 +28,6 @@ class Swarm():
         self.current_voteid = None
         self.unvoted_id = None
         self.vote_hash = ""
-        self.vote_verification = ""
         self.vote_verifications = {}
         self.vote_count = 0
 
@@ -117,12 +117,9 @@ class Swarm():
 
     def create_verification_hash(self):
         votedata = ""
-        print "\n----"
-        print "self.votes[%s].keys(): %s, sorted(self.votes[%s].keys()): %s" % (self.current_voteid, self.votes[self.current_voteid].keys(), self.current_voteid, sorted(self.votes[self.current_voteid].keys()))
+        #print "self.votes[%s].keys(): %s, sorted(self.votes[%s].keys()): %s" % (self.current_voteid, self.votes[self.current_voteid].keys(), self.current_voteid, sorted(self.votes[self.current_voteid].keys()))
         for k in sorted(self.votes[self.current_voteid].keys()):
-            print "k: %s, self.votes[%s]: %s" % (k,k,self.votes[self.current_voteid][k])
             votedata += '['+str(k).lower()+str(self.votes[self.current_voteid][k])+']'
-        print "----\n"
         print "(swarm) *** VERIFICATION: '%s'" % (votedata)
         return hashlib.sha512(votedata + str(hashlib.sha512(votedata).digest())).hexdigest()
 
@@ -240,30 +237,36 @@ class Swarm():
 
         votehash = arguments[0]
         self.vote_verifications[source.nick] = votehash
-        # if votehash != self.vote_verifications[self.server.mynick]:
-        #     print "\n----"
-        #     print "(swarm) votehash missmatch: %s" % (votehash)
-        #     print "(swarm) votehash missmatch: %s" % (self.vote_verifications[self.server.mynick])
-        #     print "----\n"
 
+        all_bots_verified = True
+        for botnick in self.votes[self.current_voteid].keys():
+            if botnick not in self.vote_verifications:
+                all_bots_verified = False
+                break
 
-    # def incoming_verifail(self, source, target, arguments):
-    #     print "(swarm) incoming_verifail(self, %s, %s, %s)" % (source, target, arguments)
-    #     if not self.enabled:
-    #         return
+        verifications = {}
+        if all_bots_verified:
+            print "*** All bots verified"
+            for botnick in self.vote_verifications.keys():
+                vhash = self.vote_verifications[botnick]
+                if vhash not in verifications:
+                    verifications[vhash] = 0
+                verifications[vhash] += 1
 
-    #     if target != self.channel:
-    #         return
-
-    #     failnick = arguments[0]
-    #     if self.server.mynick == failnick:
-    #         wait_time = randrange(5,15)
-    #         self.bot.add_timer(
-    #                 datetime.timedelta(0, wait_time),
-    #                 False,
-    #                 self.delayed_vote
-    #             )
-
+            sorted_verifications = sorted(verifications.items(), key=operator.itemgetter(1))
+            print "*** sorted verifications: %s" % (sorted_verifications)
+            if self.vote_verifications[self.server.mynick] != sorted_verifications[-1][0]: # my vhash == most popular vhash
+                self.unvoted_id = randrange(0, 65535)
+                wait_time = randrange(5,20)
+                print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
+                self.bot.add_timer(
+                        datetime.timedelta(0, wait_time),
+                        False,
+                        self.delayed_vote,
+                        30
+                    )
+            else:
+                print "*** I'M OK!!"
 
     def incoming_vote(self, source, target, arguments):
         """if someone else votes we should answer asap"""
@@ -315,7 +318,14 @@ class Swarm():
             self.unvoted_id = None # we have no unvoted votes
 
 
-    def delayed_vote(self):
+    def delayed_vote(self, min_vote_time=None):
+        if min_vote_time is None:
+            min_vote_time = self.min_vote_time
+        if (time.time() - self.last_vote_time) < min_vote_time:
+            print "(swarm) delayed_vote(): throttling vote. %s < %s" % (
+                    time.time() - self.last_vote_time,
+                    min_vote_time)
+            return
         self.vote_reply_timer = False
         self.send_vote()
 
@@ -377,11 +387,9 @@ class Swarm():
 
 
     def send_verification(self):
-        verificationid = self.create_verification_hash()
-        self.vote_verifications[self.server.mynick] = verificationid
         self.client.tell(self.channel,"%sverify %s" % (
                 self.bot.settings.trigger,
-                verificationid))
+                self.vote_verifications[self.server.mynick]))
 
 
     def send_vote(self):
@@ -401,6 +409,8 @@ class Swarm():
                 self.vote_hash))
 
         # send vote verification in a while
+        verificationid = self.create_verification_hash()
+        self.vote_verifications[self.server.mynick] = verificationid
         wait_time = randrange(
                 30,
                 60

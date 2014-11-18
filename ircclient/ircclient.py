@@ -448,6 +448,10 @@ class IRCClient(AutoReloader):
         try:
             if target == self.swarm.channel and message.split(' ')[0] == '.vote':
                 self.swarm.incoming_vote(source_user, target, message.split(' ')[1:])
+            if target == self.swarm.channel and message.split(' ')[0] == '.verify':
+                self.swarm.incoming_verification(source_user, target, message.split(' ')[1:])
+            if target == self.swarm.channel and message.split(' ')[0] == '.verifail':
+                self.swarm.incoming_verification(source_user, target, message.split(' ')[1:])
         except Exception, e:
             print "exception: %s -- %s" % (e.__class__.__name__, e)
             pass
