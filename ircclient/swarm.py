@@ -37,6 +37,7 @@ class Swarm():
 
         self.next_vote_time = 0
         self.last_vote_time = 0
+        self.last_verification_time = 0
 
         self.vote_reply_timer = 0
 
@@ -241,6 +242,9 @@ class Swarm():
 
 
     def verify_verifications(self):
+        if not self.server.mynick in self.vote_verifications:
+            self.vote_verifications[self.server.mynick] = self.create_verification_hash()
+
         all_bots_verified = True
         for botnick in self.votes[self.current_voteid].keys():
             if botnick not in self.vote_verifications:
@@ -328,11 +332,11 @@ class Swarm():
     def delayed_vote(self, min_vote_time=None):
         if min_vote_time is None:
             min_vote_time = self.min_vote_time
-        if (time.time() - self.last_vote_time) < min_vote_time:
-            print "(swarm) delayed_vote(): throttling vote. %s < %s" % (
-                    time.time() - self.last_vote_time,
-                    min_vote_time)
-            return
+        # if (time.time() - self.last_vote_time) < min_vote_time:
+        #     print "(swarm) delayed_vote(): throttling vote. %s < %s" % (
+        #             time.time() - self.last_vote_time,
+        #             min_vote_time)
+        #     return
         self.vote_reply_timer = False
         self.send_vote()
 
@@ -351,6 +355,13 @@ class Swarm():
                 datetime.timedelta(0, wait_time),
                 False,
                 self.reoccuring_vote
+            )
+
+        # send vote verification in a while
+        self.bot.add_timer(
+                datetime.timedelta(0, wait_time + 60),
+                False,
+                self.send_verification
             )
 
     def swarmchan_part(self, nick):
@@ -394,6 +405,24 @@ class Swarm():
 
 
     def send_verification(self):
+        wait_time = randrange(
+                60,
+                120
+            )
+        self.bot.add_timer(
+                datetime.timedelta(0, wait_time),
+                False,
+                self.send_verification
+            )
+
+        if time.time() - self.last_verification_time < 60:
+            print "(swarm) Throtteling verifications, last verification %d secs ago" % (time.time() - self.last_verification_time)
+            return
+        if time.time() - self.last_vote_time < 60:
+            print "(swarm) Throtteling verifcations, last vote %d secs ago" % (time.time() - self.last_vote_time)
+            return
+
+        self.last_verification_time = time.time()
         verificationid = self.create_verification_hash()
         self.vote_verifications[self.server.mynick] = verificationid
         self.client.tell(self.channel,"%sverify %s" % (
@@ -418,16 +447,6 @@ class Swarm():
                 self.random,
                 self.vote_hash))
 
-        # send vote verification in a while
-        wait_time = randrange(
-                30,
-                60
-            )
-        self.bot.add_timer(
-                datetime.timedelta(0, wait_time),
-                False,
-                self.send_verification
-            )
 
         self.last_vote_time = time.time()
 
