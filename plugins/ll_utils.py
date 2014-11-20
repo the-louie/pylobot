@@ -169,6 +169,8 @@ class LLUtils():
                 numeric &= bit.isdigit()
                 if not numeric:
                     break
+        else:
+            numeric = False
 
         return numeric
 
