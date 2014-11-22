@@ -406,8 +406,8 @@ class Swarm():
 
     def send_verification(self):
         wait_time = randrange(
-                60,
-                120
+                300,
+                900
             )
         self.bot.add_timer(
                 datetime.timedelta(0, wait_time),
