@@ -4,6 +4,8 @@ import hashlib
 import datetime
 import operator
 
+from verfication import create_verification_hash, verify_verifications
+
 MIN_VOTE_TIME = 1600
 
 class Swarm():
@@ -116,13 +118,6 @@ class Swarm():
         outstring = hashlib.sha512(instring + hashlib.sha512(instring).digest()).hexdigest()
         return outstring
 
-    def create_verification_hash(self):
-        votedata = ""
-        #print "self.votes[%s].keys(): %s, sorted(self.votes[%s].keys()): %s" % (self.current_voteid, self.votes[self.current_voteid].keys(), self.current_voteid, sorted(self.votes[self.current_voteid].keys()))
-        for k in sorted(self.votes[self.current_voteid].keys()):
-            votedata += '['+str(k).lower()+str(self.votes[self.current_voteid][k])+']'
-        print "(swarm) *** VERIFICATION: '%s'" % (votedata)
-        return hashlib.sha512(votedata + str(hashlib.sha512(votedata).digest())).hexdigest()
 
     def create_vote(self, mynick):
         """
@@ -238,34 +233,13 @@ class Swarm():
 
         votehash = arguments[0]
         self.vote_verifications[source.nick] = votehash
-        self.verify_verifications()
+        self.vote_verifications[self.server.mynick] = verificationid
 
-
-    def verify_verifications(self):
-        if not self.server.mynick in self.vote_verifications:
-            self.vote_verifications[self.server.mynick] = self.create_verification_hash()
-
-        all_bots_verified = True
-        for botnick in self.votes[self.current_voteid].keys():
-            if botnick not in self.vote_verifications:
-                all_bots_verified = False
-                break
-
-        if not all_bots_verified:
-            return
-
-        print "*** All bots verified"
-        verifications = {}
-        for botnick in self.vote_verifications.keys():
-            vhash = self.vote_verifications[botnick]
-            if vhash not in verifications:
-                verifications[vhash] = 0
-            verifications[vhash] += 1
-
-        sorted_verifications = sorted(verifications.items(), key=operator.itemgetter(1))
-        print "*** sorted verifications: %s" % (sorted_verifications)
-        if self.vote_verifications[self.server.mynick] != sorted_verifications[-1][0]: # my vhash == most popular vhash
-            self.vote_verifications = {}
+        if verify_verifications(self.votes[self.current_voteid], self.vote_verifications, self.server.mynick):
+            vote_verifications = {}
+            print "*** I'M OK!!"
+        else:
+            vote_verifications = {}
             self.unvoted_id = randrange(0, 65535)
             wait_time = randrange(5,20)
             print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
@@ -275,9 +249,8 @@ class Swarm():
                     self.delayed_vote,
                     30
                 )
-        else:
-            self.vote_verifications = {}
-            print "*** I'M OK!!"
+
+
 
     def incoming_vote(self, source, target, arguments):
         """if someone else votes we should answer asap"""
@@ -423,12 +396,25 @@ class Swarm():
             return
 
         self.last_verification_time = time.time()
-        verificationid = self.create_verification_hash()
+        verificationid = create_verification_hash(self.votes[self.current_voteid])
         self.vote_verifications[self.server.mynick] = verificationid
         self.client.tell(self.channel,"%sverify %s" % (
                 self.bot.settings.trigger,
                 self.vote_verifications[self.server.mynick]))
-        self.verify_verifications()
+        if verify_verifications(self.votes[self.current_voteid], self.vote_verifications, self.server.mynick):
+            vote_verifications = {}
+            print "*** I'M OK!!"
+        else:
+            vote_verifications = {}
+            self.unvoted_id = randrange(0, 65535)
+            wait_time = randrange(5,20)
+            print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
+            self.bot.add_timer(
+                    datetime.timedelta(0, wait_time),
+                    False,
+                    self.delayed_vote,
+                    30
+                )
 
 
     def send_vote(self):
