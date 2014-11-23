@@ -4,9 +4,154 @@ import hashlib
 import datetime
 import operator
 
-from verfication import create_verification_hash, verify_verifications
-
 MIN_VOTE_TIME = 1600
+
+class Votes():
+    def __init__(self, secret):
+        self.vote_random = 0
+        self.current_voteid = None
+        self.unvoted_id = None
+        self.vote_hash = ""
+        self.next_vote_time = 0
+        self.last_vote_time = 0
+        self.range = (65535, 0)
+        self.votes = {}
+        self.min_vote_time = MIN_VOTE_TIME
+        self.secret = secret
+        self.vote_reply_timer = 0
+
+    def create_vote_hash(self, voteid, random, nickuserhost):
+        timebit = int(round(int(datetime.datetime.now().strftime("%s"))/300))
+        instring = self.secret + str(voteid) + str(random) + str(nickuserhost) + str(timebit)
+        outstring = hashlib.sha512(instring + hashlib.sha512(instring).digest()).hexdigest()
+        return outstring
+
+    def update_swarm_range(self, vote):
+        """
+        update swarm range
+        """
+        lowest = min(self.range[0], vote)
+        highest = max(self.range[1], vote)
+        swarm_range = (lowest, highest)
+        return swarm_range
+
+    def get_swarm_range(self):
+        """
+        calculate ranges
+        """
+        sorted_swarm_votes = sorted(self.votes[self.current_voteid].values())
+        my_index = sorted_swarm_votes.index(self.vote_random)
+
+        buckets = [0]
+        bucket_size = 256.0/(len(sorted_swarm_votes))
+        curr_bucket = bucket_size
+        for tmp in range(0, 255):
+            if tmp > curr_bucket:
+                buckets.append(tmp)
+                curr_bucket = curr_bucket + bucket_size
+
+        buckets.append(255)
+        swarm_range = (buckets[my_index], buckets[my_index+1])
+
+        if swarm_range[1] == 255:
+            swarm_range = (swarm_range[0], 256)
+
+        self.range = swarm_range
+        return swarm_range
+
+    def create_vote(self, mynick, mynuh):
+        """
+        Setup a new vote
+        """
+        self.current_voteid = self.unvoted_id
+        self.vote_random = randrange(0, 65535)
+        if self.current_voteid not in self.votes:
+            self.votes[self.current_voteid] = {}
+        self.votes[self.current_voteid][mynick] = self.vote_random
+        self.get_swarm_range()
+        self.unvoted_id = None
+        self.vote_hash = self.create_vote_hash(self.current_voteid, self.vote_random, mynuh)
+
+    def get_current_votes(self):
+        if self.current_voteid in self.votes:
+            return self.votes[self.current_voteid]
+        else:
+            return {}
+
+    def get_swarm_members(self):
+        if self.current_voteid in self.votes:
+            return self.votes[self.current_voteid].keys()
+        else:
+            return []
+
+    def throttle_votes(self):
+        if (time.time() - self.last_vote_time) < self.min_vote_time:
+            print "(swarm) reoccuring_vote(): throttling vote. %s < %s" % (
+                    time.time() - self.last_vote_time,
+                    self.min_vote_time)
+            return True
+        return False
+
+
+
+    def remove_bot(self, nick):
+        """
+        remove a bot and recalculate ranges
+        """
+        if self.current_voteid not in self.votes:
+            # no votes yet
+            return
+
+        if nick not in self.votes[self.current_voteid].keys():
+            # not a swarm bot
+            return
+
+        del self.votes[self.current_voteid][nick] # remove bot from swarm
+        self.get_swarm_range() # update ranges
+
+
+class Verify():
+    def __init__(self):
+        self.vote_verifications = {}
+
+    def create_verification_hash(self, votes):
+        votedata = ""
+        for k in sorted(votes.keys()):
+            votedata += '['+str(k).lower()+str(votes[k])+']'
+        print "(verify) *** VERIFICATION: '%s'" % (votedata)
+        return hashlib.sha512(votedata + str(hashlib.sha512(votedata).digest())).hexdigest()
+
+    def verify_verifications(self, votes, mynick):
+        all_bots_verified = True
+        for botnick in votes.keys():
+            if botnick not in self.vote_verifications:
+                all_bots_verified = False
+                break
+
+        if not all_bots_verified:
+            return
+
+        print "(verify) *** All bots verified"
+        verifications = {}
+        for botnick in self.vote_verifications.keys():
+            vhash = self.vote_verifications[botnick]
+            if vhash not in verifications:
+                verifications[vhash] = 0
+            verifications[vhash] += 1
+
+        sorted_verifications = sorted(verifications.items(), key=operator.itemgetter(1))
+        print "(verify) *** sorted verifications: %s" % (sorted_verifications)
+        if self.vote_verifications[mynick] != sorted_verifications[-1][0]: # my vhash == most popular vhash
+            return False
+        else:
+            return True
+
+############################
+############################
+############################
+############################
+############################
+############################
 
 class Swarm():
     """
@@ -20,31 +165,15 @@ class Swarm():
         self.client = client
         self.server = client.server
 
-        self.min_vote_time = MIN_VOTE_TIME
-
-        self.range = (65535, 0)
-        self.votes = {}
         self.enabled = False
 
-        self.random = 0
-        self.current_voteid = None
-        self.unvoted_id = None
-        self.vote_hash = ""
-        self.vote_verifications = {}
-        self.vote_count = 0
+        self.vote = Votes(self.bot.settings.server['swarm']['secret'])
+        self.verify = Verify()
 
         self.channel = self.bot.settings.server['swarm']['channel'] #"#dreamhack.swarm"
-        self.secret = self.bot.settings.server['swarm']['secret'] # 'O=DVHk!D4"48h/g)f4R/sjF#p5FB4976hT#fBGsd8'
         self.opchans = self.bot.settings.server['swarm']['opchans'] # ['#dreamhack','#dreamhack.info','#dreamhack.trade']
 
-        self.next_vote_time = 0
-        self.last_vote_time = 0
         self.last_verification_time = 0
-
-        self.vote_reply_timer = 0
-
-        self.reoccuring_voting_enabled = False
-
         self.swarm_op_timer = None
 
     def nick_matches(self, targetnick):
@@ -59,8 +188,7 @@ class Swarm():
         md5hash = hashlib.md5()
         md5hash.update(targetnick)
         hashid = int(md5hash.hexdigest()[0:2], 16)
-        #print "(swarm) hashid is %d, my range is %d-%d" % (hashid, self.range[0], self.range[1])
-        if not self.range[0] <= hashid < self.range[1]:
+        if not self.vote.range[0] <= hashid < self.vote.range[1]:
             #print "(swarm) *** FALSE ***"
             return False
         else:
@@ -90,47 +218,8 @@ class Swarm():
         print "(swarm) disable"
         self.enabled = False
 
-    def get_current_votes(self):
-        if self.current_voteid in self.votes:
-            return self.votes[self.current_voteid]
-        else:
-            return {}
-
-    def get_swarm_members(self):
-        if self.current_voteid in self.votes:
-            return self.votes[self.current_voteid].keys()
-        else:
-            return []
-
-    def update_swarm_range(self, vote):
-        """
-        update swarm range
-        """
-        lowest = min(self.range[0], vote)
-        highest = max(self.range[1], vote)
-        swarm_range = (lowest, highest)
-        return swarm_range
-
-    def create_vote_hash(self, voteid, random, nickuserhost):
-        timebit = int(round(int(datetime.datetime.now().strftime("%s"))/300))
-        #timebit = 0 # FIXME: this should not be 0 but the above line
-        instring = self.secret + str(voteid) + str(random) + str(nickuserhost) + str(timebit)
-        outstring = hashlib.sha512(instring + hashlib.sha512(instring).digest()).hexdigest()
-        return outstring
 
 
-    def create_vote(self, mynick):
-        """
-        Setup a new vote
-        """
-        self.current_voteid = self.unvoted_id
-        self.random = randrange(0, 65535)
-        if self.current_voteid not in self.votes:
-            self.votes[self.current_voteid] = {}
-        self.votes[self.current_voteid][mynick] = self.random
-        self.range = self.get_swarm_range()
-        self.unvoted_id = None
-        self.vote_hash = self.create_vote_hash(self.current_voteid, self.random, self.server.me.nickuserhost)
 
     def parse_vote(self, arguments, sourcenick):
         """
@@ -152,7 +241,7 @@ class Swarm():
         except Exception:
             return (None, None)
 
-        calc_hash = self.create_vote_hash(vote_id, vote_value, sourcenick)
+        calc_hash = self.vote.create_vote_hash(vote_id, vote_value, sourcenick)
         if calc_hash != vote_hash_str:
             print "(swarm) vote hash missmatch:\n\tcalc: %s\n\tinco: %s\n" % (calc_hash, vote_hash_str)
             return (None, None)
@@ -160,43 +249,8 @@ class Swarm():
         return (vote_id, vote_value)
 
 
-    def get_swarm_range(self):
-        """
-        calculate ranges
-        """
-        sorted_swarm_votes = sorted(self.votes[self.current_voteid].values())
-        my_index = sorted_swarm_votes.index(self.random)
 
-        buckets = [0]
-        bucket_size = 256.0/(len(sorted_swarm_votes))
-        curr_bucket = bucket_size
-        for tmp in range(0, 255):
-            if tmp > curr_bucket:
-                buckets.append(tmp)
-                curr_bucket = curr_bucket + bucket_size
 
-        buckets.append(255)
-        swarm_range = (buckets[my_index], buckets[my_index+1])
-
-        if swarm_range[1] == 255:
-            swarm_range = (swarm_range[0], 256)
-
-        return swarm_range
-
-    def remove_bot(self, nick):
-        """
-        remove a bot and recalculate ranges
-        """
-        if self.current_voteid not in self.votes:
-            # no votes yet
-            return
-
-        if nick not in self.votes[self.current_voteid].keys():
-            # not a swarm bot
-            return
-
-        del self.votes[self.current_voteid][nick] # remove bot from swarm
-        self.range = self.get_swarm_range() # update ranges
 
     def op_bots(self):
         """
@@ -213,7 +267,7 @@ class Swarm():
             if not channel.has_op(self.client.nick): # only check channels we have op in
                 #print "(swarm) * Not op in %s" % channel_name
                 continue
-            for botnick in self.get_swarm_members():
+            for botnick in self.vote.get_swarm_members():
                 #print "(swarm) * checking %s" % botnick
                 if botnick == self.client.nick: # don't try to op myself
                     #print "(swarm) * it's ME! eject eject eject"
@@ -232,24 +286,15 @@ class Swarm():
             return
 
         votehash = arguments[0]
-        self.vote_verifications[source.nick] = votehash
-        self.vote_verifications[self.server.mynick] = verificationid
+        self.verify.vote_verifications[source.nick] = votehash
+        self.verify.vote_verifications[self.server.mynick] = self.verify.create_verification_hash(self.vote.votes)
 
-        if verify_verifications(self.votes[self.current_voteid], self.vote_verifications, self.server.mynick):
-            vote_verifications = {}
+        if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.server.mynick):
+            self.verify.vote_verifications = {}
             print "*** I'M OK!!"
         else:
-            vote_verifications = {}
-            self.unvoted_id = randrange(0, 65535)
-            wait_time = randrange(5,20)
-            print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
-            self.bot.add_timer(
-                    datetime.timedelta(0, wait_time),
-                    False,
-                    self.delayed_vote,
-                    30
-                )
-
+            self.verify.vote_verifications = {}
+            self.delay_vote(randrange(5, 25), None, 30)
 
 
     def incoming_vote(self, source, target, arguments):
@@ -273,44 +318,46 @@ class Swarm():
             print "ERROR: error in vote arguments"
             return False
 
-        if incoming_vote_id not in self.votes:
-            self.votes[incoming_vote_id] = {}
+        if incoming_vote_id not in self.vote.votes:
+            self.vote.votes[incoming_vote_id] = {}
 
-        if incoming_vote_random in self.votes[incoming_vote_id].values():
+        if incoming_vote_random in self.vote.votes[incoming_vote_id].values():
             print "ERROR: save vote value twice"
             return False
 
-        self.votes[incoming_vote_id][source.nick] = incoming_vote_random
+        self.vote.votes[incoming_vote_id][source.nick] = incoming_vote_random
 
-        if not self.vote_reply_timer and incoming_vote_id != self.current_voteid:
+        if not self.vote.vote_reply_timer and incoming_vote_id != self.vote.current_voteid:
             # new vote, we need to vote
-            self.vote_reply_timer = True
-            self.unvoted_id = incoming_vote_id
-            wait_time = randrange(0,5)
-            self.bot.add_timer(
-                    datetime.timedelta(0, wait_time),
-                    False,
-                    self.delayed_vote
-                )
+            self.delay_vote(randrange(0, 5), incoming_vote_id)
 
-        elif self.vote_reply_timer:
+        elif self.vote.vote_reply_timer:
             # already a timer running
-            print "(swarm) triggered vote but vote_reply_timer is %s" % (self.vote_reply_timer)
+            print "(swarm) triggered vote but vote_reply_timer is %s" % (self.vote.vote_reply_timer)
         else:
             # we already voted on this
-            self.range = self.get_swarm_range() # update ranges
-            self.unvoted_id = None # we have no unvoted votes
+            self.vote.get_swarm_range() # update ranges
+            self.vote.unvoted_id = None # we have no unvoted votes
 
+    def delay_vote(self, wait_time, unvoted_id=None, min_vote_time=None):
+        if unvoted_id is None:
+            self.vote.unvoted_id = randrange(0, 65535)
+        else:
+            self.vote.unvoted_id = unvoted_id
+
+        self.vote.vote_reply_timer = True
+        self.vote.next_vote_time = time.time() + wait_time
+        self.bot.add_timer(
+                datetime.timedelta(0, wait_time),
+                False,
+                self.delayed_vote,
+                min_vote_time
+            )
 
     def delayed_vote(self, min_vote_time=None):
         if min_vote_time is None:
-            min_vote_time = self.min_vote_time
-        # if (time.time() - self.last_vote_time) < min_vote_time:
-        #     print "(swarm) delayed_vote(): throttling vote. %s < %s" % (
-        #             time.time() - self.last_vote_time,
-        #             min_vote_time)
-        #     return
-        self.vote_reply_timer = False
+            min_vote_time = self.vote.min_vote_time
+        self.vote.vote_reply_timer = False
         self.send_vote()
 
 
@@ -319,11 +366,11 @@ class Swarm():
         # we should start the vote-madness
         self.enable()
         wait_time = randrange(
-                int(self.min_vote_time/100),
-                int(self.min_vote_time/50)
+                int(self.vote.min_vote_time/100),
+                int(self.vote.min_vote_time/50)
             )+60
         print "(swarm) joined swarm channel, voting in %s seconds" % (wait_time)
-        self.next_vote_time = time.time() + wait_time
+        self.vote.next_vote_time = time.time() + wait_time
         self.bot.add_timer(
                 datetime.timedelta(0, wait_time),
                 False,
@@ -343,8 +390,8 @@ class Swarm():
         update the swarm list and recalculate ranges
         """
         print "(swarm) swarmchan_part(%s)" % (nick)
-        if nick in self.get_swarm_members():
-            self.remove_bot(nick)
+        if nick in self.vote.get_swarm_members():
+            self.vote.remove_bot(nick)
 
     def reoccuring_vote(self):
         """send out vote every once in a while, if we havn't voted just"""
@@ -353,31 +400,30 @@ class Swarm():
         # built in reoccuring timer. main reason is that we want the first
         # vote to come faster than MIN_VOTE_TIME.
         wait_time = randrange(
-                self.min_vote_time,
-                self.min_vote_time*2
+                self.vote.min_vote_time,
+                self.vote.min_vote_time*2
             )
-        self.next_vote_time = time.time() + wait_time
+        self.vote.next_vote_time = time.time() + wait_time
         self.bot.add_timer(
                 datetime.timedelta(0, wait_time),
                 False,
                 self.reoccuring_vote
             )
 
-        if (time.time() - self.last_vote_time) < self.min_vote_time:
-            print "(swarm) reoccuring_vote(): throttling vote. %s < %s" % (
-                    time.time() - self.last_vote_time,
-                    self.min_vote_time)
+        if self.vote.throttle_votes():
             return
+
         if not self.enabled:
             print "(swarm) reoccuring_vote() when swarm is disabled, bailing."
             return
 
-        self.unvoted_id = randrange(0, 65535)
+        self.vote.unvoted_id = randrange(0, 65535)
         self.send_vote()
         print "(swarm) voting in %s seconds (at the most)" % (wait_time)
 
 
     def send_verification(self):
+        """ send_verification() """
         wait_time = randrange(
                 300,
                 900
@@ -391,24 +437,25 @@ class Swarm():
         if time.time() - self.last_verification_time < 60:
             print "(swarm) Throtteling verifications, last verification %d secs ago" % (time.time() - self.last_verification_time)
             return
-        if time.time() - self.last_vote_time < 60:
-            print "(swarm) Throtteling verifcations, last vote %d secs ago" % (time.time() - self.last_vote_time)
+        if time.time() - self.vote.last_vote_time < 60:
+            print "(swarm) Throtteling verifcations, last vote %d secs ago" % (time.time() - self.vote.last_vote_time)
             return
 
         self.last_verification_time = time.time()
-        verificationid = create_verification_hash(self.votes[self.current_voteid])
-        self.vote_verifications[self.server.mynick] = verificationid
+        verificationid = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid])
+        self.verify.vote_verifications[self.server.mynick] = verificationid
         self.client.tell(self.channel,"%sverify %s" % (
                 self.bot.settings.trigger,
-                self.vote_verifications[self.server.mynick]))
-        if verify_verifications(self.votes[self.current_voteid], self.vote_verifications, self.server.mynick):
-            vote_verifications = {}
+                self.verify.vote_verifications[self.server.mynick]))
+        if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.verify.vote_verifications, self.server.mynick):
+            self.verify.vote_verifications = {}
             print "*** I'M OK!!"
         else:
-            vote_verifications = {}
-            self.unvoted_id = randrange(0, 65535)
-            wait_time = randrange(5,20)
+            self.verify.vote_verifications = {}
+            self.vote.unvoted_id = randrange(0, 65535)
+            wait_time = randrange(5, 20)
             print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
+            self.vote.next_vote_time = time.time() + wait_time
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
                     False,
@@ -419,20 +466,20 @@ class Swarm():
 
     def send_vote(self):
         """create and send vote to swarm-channel"""
-        if self.unvoted_id == None:
+        if self.vote.unvoted_id == None:
             print "(swarm) send_vote(): unvoted_id is None. Escaping."
             return
         if not self.enabled:
             print "(swarm) send_vote(): swarm not enabled. Escaping."
             return
 
-        self.create_vote(self.client.server.mynick)
+        self.vote.create_vote(self.client.server.mynick, self.server.me.nickuserhost)
         self.client.tell(self.channel,"%svote %d %d %s" % (
                 self.bot.settings.trigger,
-                self.current_voteid,
-                self.random,
-                self.vote_hash))
+                self.vote.current_voteid,
+                self.vote.vote_random,
+                self.vote.vote_hash))
 
 
-        self.last_vote_time = time.time()
+        self.vote.last_vote_time = time.time()
 

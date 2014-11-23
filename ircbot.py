@@ -179,7 +179,7 @@ class IRCBot(AutoReloader):
             print "(swarm) channel: %s" % (
                     self.client.swarm.channel)
             print "(swarm) votes: %s" % (
-                    self.client.swarm.get_current_votes())
+                    self.client.swarm.votes.get_current_votes())
 
 
         self.execute_plugins("debug_info");
