@@ -436,15 +436,20 @@ class IRCClient(AutoReloader):
 
         if source is not None:
             source_nick = self.get_nick(source)
+            source_user = self.server.user_by_nick(source_nick)
 
             if target[0] == '#':
+                if source_user is None:
+                    source_user = self.server.add_user(source, target)
                 target_obj = self.server.channel_by_name(target)
             else:
                 target_obj = None
 
-            source_user = self.server.user_by_nick(source_nick)
+
+
         else:
             source_user = None
+
 
         try:
             if target == self.swarm.channel and message.split(' ')[0] == '.vote':

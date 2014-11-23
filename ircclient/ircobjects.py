@@ -197,6 +197,8 @@ class Server():
 		if channel_name:
 			self.__add_user_to_channel(nick, channel_name, flags)
 
+		return u
+
 	def del_user(self, nick):
 		try:
 			user = user_by_nick(nick)
