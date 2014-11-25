@@ -23,6 +23,7 @@ class Votes():
     def create_vote_hash(self, voteid, random, nickuserhost):
         timebit = int(round(int(datetime.datetime.now().strftime("%s"))/300))
         instring = self.secret + str(voteid) + str(random) + str(nickuserhost) + str(timebit)
+        print "(votes) creating votehash with: %s" % (instring)
         outstring = hashlib.sha512(instring + hashlib.sha512(instring).digest()).hexdigest()
         return outstring
 
@@ -204,10 +205,10 @@ class Swarm():
 
         # make sure the swarm is opped periodically
         if self.swarm_op_timer == None:
-            delay = int(randrange(600, 1200)/10)
+            delay = randrange(60, 120)
             self.swarm_op_timer = self.bot.add_timer(
                     datetime.timedelta(0, delay),
-                    True,
+                    False,
                     self.op_bots
                 )
 
@@ -263,18 +264,19 @@ class Swarm():
 
         for channel_name in self.opchans:
             channel = self.client.server.channel_by_name(channel_name)
-            #print "(swarm) * checking %s" % channel_name
+            print "(swarm) * checking %s" % channel_name
             if not channel.has_op(self.client.nick): # only check channels we have op in
-                #print "(swarm) * Not op in %s" % channel_name
+                print "(swarm) * Not op in %s" % channel_name
                 continue
             for botnick in self.vote.get_swarm_members():
-                #print "(swarm) * checking %s" % botnick
+                print "(swarm) * checking %s" % botnick
                 if botnick == self.client.nick: # don't try to op myself
-                    #print "(swarm) * it's ME! eject eject eject"
+                    print "(swarm) * it's ME! eject eject eject"
                     continue
                 if channel.has_nick(botnick) and not channel.has_op(botnick):
+                    print "(swarm) * let's op %s in %s" % (botnick, channel_name)
                     self.client.send("MODE %s +o %s" % (channel_name, botnick))
-                #print "(swarm) %s in_channel: %s, has_op: %s, has_voice: %s" % (botnick, channel.has_nick(botnick), channel.has_op(botnick), channel.has_voice(botnick))
+                print "(swarm) * %s in_channel: %s, has_op: %s, has_voice: %s" % (botnick, channel.has_nick(botnick), channel.has_op(botnick), channel.has_voice(botnick))
 
 
     def incoming_verification(self, source, target, arguments):
