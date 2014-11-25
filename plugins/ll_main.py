@@ -54,9 +54,13 @@ class Landlady(Command):
         """
         Expose some functions
         """
+        if event['target'] is not None:
+            target_chan = event['target'].name
+        else:
+            target_chan = None
+
         if event['source'] is not None:
             source_nick = event['source'].nick
-            target_chan = event['target'].name
         else:
             source_nick = event['target'].nick
             target_chan = None
