@@ -429,35 +429,62 @@ class IRCClient(AutoReloader):
         self.ping_count += 1
         self.send("PONG :" + tupels[4])
 
+
+
+# --
+# on_privmsg(self): louie!~louie@louie.se : #dreamhack.c&c : tycker du inte om mina fina namn? :)
+# --
+# (swarm) on_privmsg()
+# {'target': <ircclient.ircobjects.Channel instance at 0x103a92bd8>, 'bot': <ircbot.IRCBot object at 0x103a84cd0>, 'swarm_match': False, 'source': <ircclient.ircobjects.User instance at 0x103a92d88>, 'client': <ircclient.ircclient.IRCClient object at 0x103a84d50>, 'message': 'tycker du inte om mina fina namn? :)'}
+# -
+# --
+# on_privmsg(self): bandb!~bang@static-237-166.junet.se : Olivia : hejsan dinf isk
+# --
+# (swarm) on_privmsg()
+# {'target': None, 'bot': <ircbot.IRCBot object at 0x103a84cd0>, 'swarm_match': False, 'source': None, 'client': <ircclient.ircclient.IRCClient object at 0x103a84d50>, 'message': 'hejsan dinf isk'}
+# -
+
+
     def on_privmsg(self, tupels):
         source, target, message = tupels[2], tupels[4], tupels[5]
         source_nick = self.get_nick(source)
-        #print "on_privmsg(self): %s : %s : %s" % (source, target, message)
 
-        if source is not None:
-            source_nick = self.get_nick(source)
-            source_user = self.server.user_by_nick(source_nick)
+        source_nick = self.get_nick(source)
+        source_obj = self.server.user_by_nick(source_nick)
+        if source_obj is None: # havn't seen this user before, might be a message from someone not in any channel
+            source_obj = self.server.add_user(source)
 
-            if target[0] == '#':
-                if source_user is None:
-                    source_user = self.server.add_user(source, target)
-                target_obj = self.server.channel_by_name(target)
-            else:
-                target_obj = None
+        if target[0] == '#': # target is a channel, it's a public message
+            target_obj = self.server.channel_by_name(target)
+        else: # it's a private message, target is me!
+            target_obj = None
 
 
 
-        else:
-            source_user = None
+        # if source is not None:
+        #     source_nick = self.get_nick(source)
+        #     source_user = self.server.user_by_nick(source_nick)
+
+        #     if target[0] == '#':
+        #         if source_user is None:
+        #             source_user = self.server.add_user(source, target)
+        #         target_obj = self.server.channel_by_name(target)
+        #     else:
+        #         target_obj = None
+
+
+
+        # else:
+        #     source_user = None
 
 
         try:
             if target == self.swarm.channel and message.split(' ')[0] == '.vote':
-                self.swarm.incoming_vote(source_user, target, message.split(' ')[1:])
+                self.swarm.incoming_vote(source_obj, target, message.split(' ')[1:])
             if target == self.swarm.channel and message.split(' ')[0] == '.verify':
-                self.swarm.incoming_verification(source_user, target, message.split(' ')[1:])
+                self.swarm.incoming_verification(source_obj, target, message.split(' ')[1:])
             if target == self.swarm.channel and message.split(' ')[0] == '.verifail':
-                self.swarm.incoming_verification(source_user, target, message.split(' ')[1:])
+                self.swarm.incoming_verification(source_obj, target, message.split(' ')[1:])
         except Exception, e:
             print "exception:\n%s -- %s" % (e.__class__.__name__, e)
             print tupels
@@ -466,7 +493,7 @@ class IRCClient(AutoReloader):
 
         event = {
             "client": self,
-            "source": source_user,
+            "source": source_obj,
             "target": target_obj,
             "message": message,
             'swarm_match': self.swarm.nick_matches(source_nick)
