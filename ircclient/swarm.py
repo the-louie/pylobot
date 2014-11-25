@@ -293,12 +293,6 @@ class Swarm():
         print "(swarm) disable"
         self.enabled = False
 
-
-
-
-
-
-
     def op_bots(self):
         """
         op all members of the swarm where appropriate
