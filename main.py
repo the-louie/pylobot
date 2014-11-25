@@ -73,8 +73,11 @@ def Tick():
 								sys.stdout.write(key + "\n")
 					elif command == 'exit':
 						sys.exit(0)
+					elif command == 'nickmatches':
+						print bot.client.swarm.nickmatches(params)
 
 					cli_string = ""
+					params = ""
 
 
 
