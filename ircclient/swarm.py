@@ -111,6 +111,78 @@ class Votes():
         self.get_swarm_range() # update ranges
 
 
+    def check_vote_id(self, incoming_vote_id):
+        if incoming_vote_id not in self.votes:
+            self.vote.votes[incoming_vote_id] = {}
+
+
+
+    def parse(self, arguments, sourcenick):
+        """
+        parse an incomming vote and make sure it contains
+        everything we need.
+        """
+        try:
+            (vote_id_str, vote_value_str, vote_hash_str) = arguments
+        except Exception:
+            return (None, None)
+
+        try:
+            vote_id = int(vote_id_str)
+        except Exception:
+            return (None, None)
+
+        try:
+            vote_value = int(vote_value_str)
+        except Exception:
+            return (None, None)
+
+        calc_hash = self.vote.create_vote_hash(vote_id, vote_value, sourcenick)
+        if calc_hash != vote_hash_str:
+            print "(swarm) vote hash missmatch:\n\tcalc: %s\n\tinco: %s\n" % (calc_hash, vote_hash_str)
+            return (None, None)
+
+        return (vote_id, vote_value)
+
+    def incoming_vote(self, incoming_vote_id, incoming_vote_random):
+
+        # if it's a new vote prepare the vote dict
+        self.check_vote_id(incoming_vote_id):
+
+
+        if incoming_vote_random in self.votes[incoming_vote_id].values():
+            print "ERROR: save vote value twice"
+            return False
+
+        self.votes[incoming_vote_id][source.nick] = incoming_vote_random
+
+        if incoming_vote_id != self.current_voteid:  # if this is a new vote we should set the vote id
+            self.vote.unvoted_id = incoming_vote_id
+
+        if not self.vote_reply_timer and incoming_vote_id != self.current_voteid:
+            # new vote, we need to vote
+            return True
+
+        elif self.vote_reply_timer:
+            # already a timer running
+            print "(swarm) triggered vote but vote_reply_timer is %s" % (self.vote.vote_reply_timer)
+            return False
+        else:
+            # we already voted on this
+            self.vote.get_swarm_range() # update ranges
+            self.vote.unvoted_id = None # we have no unvoted votes
+            return False
+
+
+
+############################
+############################
+############################
+############################
+############################
+############################
+
+
 class Verify():
     def __init__(self):
         self.vote_verifications = {}
@@ -143,6 +215,16 @@ class Verify():
         sorted_verifications = sorted(verifications.items(), key=operator.itemgetter(1))
         print "(verify) *** sorted verifications: %s" % (sorted_verifications)
         if self.vote_verifications[mynick] != sorted_verifications[-1][0]: # my vhash == most popular vhash
+            return False
+        else:
+            return True
+
+
+    def nick_matches(self, targetnick):
+        md5hash = hashlib.md5()
+        md5hash.update(targetnick)
+        hashid = int(md5hash.hexdigest()[0:2], 16)
+        if not self.vote.range[0] <= hashid < self.vote.range[1]:
             return False
         else:
             return True
@@ -186,15 +268,7 @@ class Swarm():
             print "(swarm) target nick is None, exiting"
             return True
 
-        md5hash = hashlib.md5()
-        md5hash.update(targetnick)
-        hashid = int(md5hash.hexdigest()[0:2], 16)
-        if not self.vote.range[0] <= hashid < self.vote.range[1]:
-            #print "(swarm) *** FALSE ***"
-            return False
-        else:
-            #print "(swarm) *** TRUE ***"
-            return True
+        return self.vote.nick_matches(targetnick)
 
     def enable(self):
         """
@@ -220,34 +294,6 @@ class Swarm():
         self.enabled = False
 
 
-
-
-    def parse_vote(self, arguments, sourcenick):
-        """
-        parse an incomming vote and make sure it contains
-        everything we need.
-        """
-        try:
-            (vote_id_str, vote_value_str, vote_hash_str) = arguments
-        except Exception:
-            return (None, None)
-
-        try:
-            vote_id = int(vote_id_str)
-        except Exception:
-            return (None, None)
-
-        try:
-            vote_value = int(vote_value_str)
-        except Exception:
-            return (None, None)
-
-        calc_hash = self.vote.create_vote_hash(vote_id, vote_value, sourcenick)
-        if calc_hash != vote_hash_str:
-            print "(swarm) vote hash missmatch:\n\tcalc: %s\n\tinco: %s\n" % (calc_hash, vote_hash_str)
-            return (None, None)
-
-        return (vote_id, vote_value)
 
 
 
@@ -296,7 +342,7 @@ class Swarm():
             print "*** I'M OK!!"
         else:
             self.verify.vote_verifications = {}
-            self.delay_vote(randrange(5, 25), None, 30)
+            self.delay_vote(randrange(5, 25), 30)
 
 
     def incoming_vote(self, source, target, arguments):
@@ -315,38 +361,16 @@ class Swarm():
             print "ERROR: Swarm vote in none swarm channel (%s)" % target
             return False
 
-        (incoming_vote_id, incoming_vote_random) = self.parse_vote(arguments, source.nickuserhost)
+        (incoming_vote_id, incoming_vote_random) = self.vote.parse(arguments, source.nickuserhost)
         if (incoming_vote_id is None) or (incoming_vote_random is None):
             print "ERROR: error in vote arguments"
             return False
 
-        if incoming_vote_id not in self.vote.votes:
-            self.vote.votes[incoming_vote_id] = {}
+        if self.vote.incoming_vote(incoming_vote_id, incoming_vote_random):
+            self.delay_vote(randrange(0, 5))
 
-        if incoming_vote_random in self.vote.votes[incoming_vote_id].values():
-            print "ERROR: save vote value twice"
-            return False
 
-        self.vote.votes[incoming_vote_id][source.nick] = incoming_vote_random
-
-        if not self.vote.vote_reply_timer and incoming_vote_id != self.vote.current_voteid:
-            # new vote, we need to vote
-            self.delay_vote(randrange(0, 5), incoming_vote_id)
-
-        elif self.vote.vote_reply_timer:
-            # already a timer running
-            print "(swarm) triggered vote but vote_reply_timer is %s" % (self.vote.vote_reply_timer)
-        else:
-            # we already voted on this
-            self.vote.get_swarm_range() # update ranges
-            self.vote.unvoted_id = None # we have no unvoted votes
-
-    def delay_vote(self, wait_time, unvoted_id=None, min_vote_time=None):
-        if unvoted_id is None:
-            self.vote.unvoted_id = randrange(0, 65535)
-        else:
-            self.vote.unvoted_id = unvoted_id
-
+    def delay_vote(self, wait_time, min_vote_time=None):
         self.vote.vote_reply_timer = True
         self.vote.next_vote_time = time.time() + wait_time
         self.bot.add_timer(
