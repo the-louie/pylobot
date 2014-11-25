@@ -303,26 +303,26 @@ class Swarm():
         """
         op all members of the swarm where appropriate
         """
-        print "(swarm) op_bots()"
+        #print "(swarm) op_bots()"
         if not self.enabled:
-            print "(swarm) not enabled"
+            #print "(swarm) not enabled"
             return
 
         for channel_name in self.opchans:
             channel = self.client.server.channel_by_name(channel_name)
-            print "(swarm) * checking %s" % channel_name
+            #print "(swarm) * checking %s" % channel_name
             if not channel.has_op(self.client.nick): # only check channels we have op in
-                print "(swarm) * Not op in %s" % channel_name
+                #print "(swarm) * Not op in %s" % channel_name
                 continue
             for botnick in self.vote.get_swarm_members():
-                print "(swarm) * checking %s" % botnick
+                #print "(swarm) * checking %s" % botnick
                 if botnick == self.client.nick: # don't try to op myself
-                    print "(swarm) * it's ME! eject eject eject"
+                    #print "(swarm) * it's ME! eject eject eject"
                     continue
                 if channel.has_nick(botnick) and not channel.has_op(botnick):
-                    print "(swarm) * let's op %s in %s" % (botnick, channel_name)
+                    #print "(swarm) * let's op %s in %s" % (botnick, channel_name)
                     self.client.send("MODE %s +o %s" % (channel_name, botnick))
-                print "(swarm) * %s in_channel: %s, has_op: %s, has_voice: %s" % (botnick, channel.has_nick(botnick), channel.has_op(botnick), channel.has_voice(botnick))
+                #print "(swarm) * %s in_channel: %s, has_op: %s, has_voice: %s" % (botnick, channel.has_nick(botnick), channel.has_op(botnick), channel.has_voice(botnick))
 
 
     def incoming_verification(self, source, target, arguments):
