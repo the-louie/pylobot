@@ -287,7 +287,7 @@ class Swarm():
 
         votehash = arguments[0]
         self.verify.vote_verifications[source.nick] = votehash
-        self.verify.vote_verifications[self.server.mynick] = self.verify.create_verification_hash(self.vote.votes)
+        self.verify.vote_verifications[self.server.mynick] = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid])
 
         if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.server.mynick):
             self.verify.vote_verifications = {}
@@ -447,7 +447,7 @@ class Swarm():
         self.client.tell(self.channel,"%sverify %s" % (
                 self.bot.settings.trigger,
                 self.verify.vote_verifications[self.server.mynick]))
-        if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.verify.vote_verifications, self.server.mynick):
+        if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.server.mynick):
             self.verify.vote_verifications = {}
             print "*** I'M OK!!"
         else:
