@@ -191,7 +191,7 @@ class Verify():
         votedata = ""
         for k in sorted(votes.keys()):
             votedata += '['+str(k).lower()+str(votes[k])+']'
-        print "(verify) *** VERIFICATION: '%s'" % (votedata)
+        #print "(verify) *** VERIFICATION: '%s'" % (votedata)
         return hashlib.sha512(votedata + str(hashlib.sha512(votedata).digest())).hexdigest()
 
     def verify_verifications(self, votes, mynick):
@@ -204,7 +204,7 @@ class Verify():
         if not all_bots_verified:
             return
 
-        print "(verify) *** All bots verified"
+        #print "(verify) *** All bots verified"
         verifications = {}
         for botnick in self.vote_verifications.keys():
             vhash = self.vote_verifications[botnick]
@@ -213,7 +213,7 @@ class Verify():
             verifications[vhash] += 1
 
         sorted_verifications = sorted(verifications.items(), key=operator.itemgetter(1))
-        print "(verify) *** sorted verifications: %s" % (sorted_verifications)
+        #print "(verify) *** sorted verifications: %s" % (sorted_verifications)
         if self.vote_verifications[mynick] != sorted_verifications[-1][0]: # my vhash == most popular vhash
             return False
         else:
