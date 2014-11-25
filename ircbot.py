@@ -171,15 +171,15 @@ class IRCBot(AutoReloader):
         if self.client.swarm.enabled:
             #print "(swarm) old votes: %s" % (self.client.swarm.votes)
             print "(swarm) voteid: %s (%s)" % (
-                    self.client.swarm.current_voteid, self.client.swarm.range)
+                    self.client.swarm.vote.current_voteid, self.client.swarm.vote.range)
             print "(swarm) last vote: %s s ago" % (
-                    int(round(time.time() - self.client.swarm.last_vote_time)))
+                    int(round(time.time() - self.client.swarm.vote.last_vote_time)))
             print "(swarm) next vote in: %s s" % (
-                    int(round(self.client.swarm.next_vote_time - time.time())))
+                    int(round(self.client.swarm.vote.next_vote_time - time.time())))
             print "(swarm) channel: %s" % (
-                    self.client.swarm.channel)
+                    self.client.swarm.vote.channel)
             print "(swarm) votes: %s" % (
-                    self.client.swarm.votes.get_current_votes())
+                    self.client.swarm.vote.votes.get_current_votes())
 
 
         self.execute_plugins("debug_info");

@@ -411,7 +411,7 @@ class IRCClient(AutoReloader):
             reason += ' ' + tupels[5]
 
         source_nick = self.get_nick(source)
-        self.swarm.remove_bot(source_nick)
+        self.swarm.vote.remove_bot(source_nick)
 
         event = {
             'user': self.server.user_by_nick(source_nick),
