@@ -177,9 +177,11 @@ class IRCBot(AutoReloader):
             print "(swarm) next vote in: %s s" % (
                     int(round(self.client.swarm.vote.next_vote_time - time.time())))
             print "(swarm) channel: %s" % (
-                    self.client.swarm.vote.channel)
+                    self.client.swarm.channel)
             print "(swarm) votes: %s" % (
-                    self.client.swarm.vote.votes.get_current_votes())
+                    self.client.swarm.vote.get_current_votes())
+            print "(swarm) verifications: %s" % (
+                    self.client.swarm.verify.sorted_vote_verifications)
 
 
         self.execute_plugins("debug_info");
