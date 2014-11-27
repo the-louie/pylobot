@@ -102,6 +102,7 @@ class Channel():
 			return None
 
 	def has_op(self, nick):
+		#print "has_op(%s): %s" % (nick, self.get_flags(nick))
 		return "@" in (self.get_flags(nick) or "")
 
 	def has_voice(self, nick):
