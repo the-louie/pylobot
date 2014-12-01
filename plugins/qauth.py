@@ -22,4 +22,4 @@ class QAuth(Command):
 
 	def de_deferr(self):
 		print "Dedeferrig joins"
-		self.bot.settings.deferred_join = False
+		self.bot.settings.deferred_join_swarm = False

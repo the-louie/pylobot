@@ -77,6 +77,9 @@ class IRCClient(AutoReloader):
         self.swarm = Swarm(bot, self)
         self.swarm_enabled = True
 
+        self.deffered_join_all = self.bot.settings.deferred_join_all
+        self.deffered_join_swarm = self.bot.settings.deferred_join_swarm
+
 
 
     def __execute_command_queue(self):
@@ -533,6 +536,8 @@ class IRCClient(AutoReloader):
         self.active_session = True
 
         self.send('WHO %s' % (self.server.mynick))
+
+        self.swarm.on_connected()
 
         event = {
             "client": self,

@@ -11,7 +11,7 @@ class AutoJoin(Command):
 		self.join_all_channels()
 
 	def join_all_channels(self):
-		if self.bot.settings.deferred_join:
+		if self.bot.settings.deferred_join_all:
 			self.bot.add_timer(datetime.timedelta(seconds=10), False, self.join_all_channels)
 			return
 

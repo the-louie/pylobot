@@ -255,6 +255,7 @@ class Swarm():
         self.server = client.server
 
         self.enabled = False
+        self.verified = False
 
         self.vote = Votes(self.bot.settings.server['swarm']['secret'])
         self.verify = Verify()
@@ -264,6 +265,31 @@ class Swarm():
 
         self.last_verification_time = 0
         self.swarm_op_timer = None
+
+    def on_connected(self):
+        # join to swarm channels
+        self.join_swarm_channels()
+
+
+    def join_swarm_channels(self):
+        print "(swarm) join_swarm_channels()"
+        if self.client.deffered_join_swarm:
+            wait_time = randrange(
+                    10,
+                    15
+                )
+            print "(swarm) * deffered, waiting for %s secs" % wait_time
+            self.bot.add_timer(
+                    datetime.timedelta(0, wait_time),
+                    False,
+                    self.join_swarm_channels
+                )
+        else:
+            for channel in self.bot.settings.server['swarm_channels']:
+                if len(channel) == 2:
+                    self.bot.join(channel[0], channel[1])
+                elif len(channel) == 1:
+                    self.bot.join(channel[0])
 
     def nick_matches(self, targetnick):
         #print "(swarm) nick_matches(self, %s)" % (targetnick)
@@ -489,6 +515,8 @@ class Swarm():
         if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.server.mynick):
             self.verify.vote_verifications = {}
             print "*** I'M OK!!"
+            self.verified = True
+            self.client.bot.settings.deferred_join_all = False
         else:
             self.verify.reset_verifications()
             self.vote.unvoted_id = randrange(0, 65535)

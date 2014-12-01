@@ -21,10 +21,10 @@ class Settings(AutoReloader):                      # these two lines
 	# if we supply qauth via command line deffer joins
 	# until we are mode +x
 	if len(argv) == 3:
-		deferred_join = True
+		deferred_join_all = True
 		qauth = (argv[1], argv[2])
 	else:
-		deferred_join = False
+		deferred_join_all = False
 		qauth = None
 
 	trigger = "."
