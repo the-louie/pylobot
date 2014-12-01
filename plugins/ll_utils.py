@@ -248,23 +248,23 @@ class LLUtils():
 
         else:
             # try a wide mask first
-            hits = 0
-            for channel in self.Settings.kb_settings['child_chans']:
-                if len(host.split('.')) == 2:
-                    banmask = '*!*@%s' % host
-                else:
-                    banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
-                hits += len(self.match_banmask(userlist, targetnick, banmask, channel))
-            if hits == 0:
-                return banmask
+            # hits = 0
+            # for channel in self.Settings.kb_settings['child_chans']:
+            #     if len(host.split('.')) == 2:
+            #         banmask = '*!*@%s' % host
+            #     else:
+            #         banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
+            #     hits += len(self.match_banmask(userlist, targetnick, banmask, channel))
+            # if hits == 0:
+            #     return banmask
 
             # try a wide mask second
             hits = 0
             for channel in self.Settings.kb_settings['child_chans']:
                 if len(host.split('.')) == 2:
-                    banmask = '*!*%s@%s' % (user,host)
+                    banmask = '*!*@%s' % (user,host)
                 else:
-                    banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
+                    banmask = '*!*%s@*.%s' % (user, '.'.join(host.split('.')[1:]))
                 hits += len(self.match_banmask(userlist, targetnick, banmask, channel))
             if hits == 0:
                 return banmask
@@ -275,18 +275,18 @@ class LLUtils():
                 if len(host.split('.')) == 2:
                     banmask = '*!*@%s' % host
                 else:
-                    banmask = '*!*@*.%s' % '.'.join(host.split('.')[1:])
+                    banmask = '*!*%s@*.%s' % (user, '.'.join(host.split('.')[1:]))
                 hits += len(self.match_banmask(userlist, targetnick, banmask, channel))
             if hits == 0:
                 return banmask
 
-            # narrow it down a bit more
-            hits = 0
-            for channel in self.Settings.kb_settings['child_chans']:
-                banmask = '*!*@%s' % (host)
-                hits += len(self.match_banmask(userlist, targetnick, banmask, channel))
-            if hits == 0:
-                return banmask
+            # # narrow it down a bit more
+            # hits = 0
+            # for channel in self.Settings.kb_settings['child_chans']:
+            #     banmask = '*!*@%s' % (host)
+            #     hits += len(self.match_banmask(userlist, targetnick, banmask, channel))
+            # if hits == 0:
+            #     return banmask
 
             # if everything else failed use this
             banmask = '*!*%s*@%s' % (user,host)
