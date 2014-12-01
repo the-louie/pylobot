@@ -486,9 +486,10 @@ class IRCClient(AutoReloader):
             if target == self.swarm.channel and message.split(' ')[0] == '.verifail':
                 self.swarm.incoming_verification(source_obj, target, message.split(' ')[1:])
         except Exception, e:
+            print "--------------------"
             print "exception:\n%s -- %s" % (e.__class__.__name__, e)
-            print tupels
-            print "--"
+            print "on_privmsg(%s)" % tupels
+            print "--------------------"
             pass
 
         event = {

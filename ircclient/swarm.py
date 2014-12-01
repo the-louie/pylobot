@@ -157,7 +157,6 @@ class Votes():
         self.votes[incoming_vote_id][source_nick] = incoming_vote_random
 
         if incoming_vote_id != self.current_voteid:  # if this is a new vote we should set the vote id
-            self.swarm.reset_verifications()
             self.unvoted_id = incoming_vote_id
 
         if not self.vote_reply_timer and incoming_vote_id != self.current_voteid:
@@ -193,16 +192,17 @@ class Votes():
 
 
 class Verify():
-    def __init__(self):
+    def __init__(self, secret):
+        self.secret = secret
         self.vote_verifications = {}
         self.sorted_vote_verifications = []
 
-    def swarm.reset_verifications(self):
+    def reset_verifications(self):
         self.vote_verifications = {}
         self.sorted_vote_verifications = []
 
-    def create_verification_hash(self, votes):
-        votedata = ""
+    def create_verification_hash(self, votes, voteid):
+        votedata = self.secret + "[" + voteid + "]"
         for k in sorted(votes.keys()):
             votedata += '['+str(k).lower()+str(votes[k])+']'
         #print "(verify) *** VERIFICATION: '%s'" % (votedata)
@@ -257,7 +257,7 @@ class Swarm():
         self.enabled = False
 
         self.vote = Votes(self.bot.settings.server['swarm']['secret'])
-        self.verify = Verify()
+        self.verify = Verify(self.bot.settings.server['swarm']['secret'])
 
         self.channel = self.bot.settings.server['swarm']['channel'] #"#dreamhack.swarm"
         self.opchans = self.bot.settings.server['swarm']['opchans'] # ['#dreamhack','#dreamhack.info','#dreamhack.trade']
@@ -345,9 +345,14 @@ class Swarm():
         if target != self.channel:
             return
 
-        votehash = arguments[0]
+        voteid = arguments[0]
+        votehash = arguments[1]
+        if voteid != self.vote.current_voteid:
+            print "(verify) incoming voteid (%s) doesn't match current_voteid (%s), ignoring." % (voteid, self.vote.current_voteid)
+            return
+
         self.verify.vote_verifications[source.nick] = votehash
-        self.verify.vote_verifications[self.server.mynick] = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid])
+        self.verify.vote_verifications[self.server.mynick] = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid)
 
         if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.server.mynick):
             self.verify.vote_verifications = {}
@@ -379,6 +384,7 @@ class Swarm():
             return False
 
         if self.vote.incoming_vote(incoming_vote_id, incoming_vote_random, source.nick):
+            self.verify.reset_verifications() # we voted, reset verifications
             self.delay_vote(randrange(0, 5))
 
 
@@ -483,8 +489,9 @@ class Swarm():
         self.verify.vote_verifications[self.server.mynick] = verificationid
         self.last_verification_time = time.time()
 
-        self.client.tell(self.channel,"%sverify %s" % (
+        self.client.tell(self.channel,"%sverify %d %s" % (
                 self.bot.settings.trigger,
+                self.vote.current_voteid,
                 self.verify.vote_verifications[self.server.mynick]))
         if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.server.mynick):
             self.verify.vote_verifications = {}
