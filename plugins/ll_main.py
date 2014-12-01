@@ -102,7 +102,7 @@ class Landlady(Command):
 
 
         if self.swarm.enabled and not self.swarm.nick_matches(target_nick):
-            print "(kb) '%s' don't match"
+            print "(kb) '%s' don't match" % target_nick
             return None
 
         user = self.client.server.user_by_nick(target_nick)
