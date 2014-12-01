@@ -157,6 +157,7 @@ class Votes():
         self.votes[incoming_vote_id][source_nick] = incoming_vote_random
 
         if incoming_vote_id != self.current_voteid:  # if this is a new vote we should set the vote id
+            self.swarm.reset_verifications()
             self.unvoted_id = incoming_vote_id
 
         if not self.vote_reply_timer and incoming_vote_id != self.current_voteid:
@@ -193,6 +194,10 @@ class Votes():
 
 class Verify():
     def __init__(self):
+        self.vote_verifications = {}
+        self.sorted_vote_verifications = []
+
+    def swarm.reset_verifications(self):
         self.vote_verifications = {}
         self.sorted_vote_verifications = []
 
@@ -412,7 +417,7 @@ class Swarm():
 
         # send vote verification in a while
         self.bot.add_timer(
-                datetime.timedelta(0, wait_time + 60),
+                datetime.timedelta(0, wait_time + 300),
                 False,
                 self.send_verification
             )
@@ -474,9 +479,10 @@ class Swarm():
             print "(swarm) Throtteling verifcations, last vote %d secs ago" % (time.time() - self.vote.last_vote_time)
             return
 
-        self.last_verification_time = time.time()
         verificationid = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid])
         self.verify.vote_verifications[self.server.mynick] = verificationid
+        self.last_verification_time = time.time()
+
         self.client.tell(self.channel,"%sverify %s" % (
                 self.bot.settings.trigger,
                 self.verify.vote_verifications[self.server.mynick]))
@@ -484,7 +490,7 @@ class Swarm():
             self.verify.vote_verifications = {}
             print "*** I'M OK!!"
         else:
-            self.verify.vote_verifications = {}
+            self.verify.reset_verifications()
             self.vote.unvoted_id = randrange(0, 65535)
             wait_time = randrange(5, 20)
             print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
