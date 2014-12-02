@@ -182,6 +182,8 @@ class IRCBot(AutoReloader):
                     self.client.swarm.vote.get_current_votes())
             print "(swarm) verifications: %s" % (
                     self.client.swarm.verify.sorted_vote_verifications)
+            print "(swarm) verification bots: %s" % (
+                    self.client.swarm.verify.vote_verifications.keys())
 
 
         self.execute_plugins("debug_info");

@@ -488,7 +488,7 @@ class IRCClient(AutoReloader):
         except Exception, e:
             print "--------------------"
             print "exception:\n%s -- %s" % (e.__class__.__name__, e)
-            print "on_privmsg(%s)" % tupels
+            print "on_privmsg(%s)" % (str(tupels))
             print "--------------------"
             pass
 

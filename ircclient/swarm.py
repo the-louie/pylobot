@@ -196,39 +196,48 @@ class Verify():
         self.secret = secret
         self.vote_verifications = {}
         self.sorted_vote_verifications = []
+        self.verification_id = 0
 
-    def reset_verifications(self):
-        self.vote_verifications = {}
-        self.sorted_vote_verifications = []
-
-    def create_verification_hash(self, votes, voteid):
-        votedata = self.secret + "[" + voteid + "]"
+    def __create_hash__(self, votes, voteid):
+        votedata = self.secret + "[" + str(voteid) + "]"
         for k in sorted(votes.keys()):
             votedata += '['+str(k).lower()+str(votes[k])+']'
         #print "(verify) *** VERIFICATION: '%s'" % (votedata)
         return hashlib.sha512(votedata + str(hashlib.sha512(votedata).digest())).hexdigest()
 
-    def verify_verifications(self, votes, mynick):
-        all_bots_verified = True
-        for botnick in votes.keys():
-            if botnick not in self.vote_verifications:
-                all_bots_verified = False
-                break
+    def nick_is_verified(self, nick):
+        return nick in self.vote_verifications[self.verification_id].keys()
 
-        if not all_bots_verified:
-            return
+    def reset_verifications(self):
+        self.verification_id = randrange(0, 65535)
+        self.vote_verifications[self.verification_id] = {}
+        self.sorted_vote_verifications = []
+
+
+    def create_verification_hash(self, votes, voteid, mynick):
+        new_hash = self.__create_hash__(votes, voteid)
+        if self.verification_id not in self.vote_verifications.keys():
+            self.vote_verifications[self.verification_id] = {}
+        self.vote_verifications[self.verification_id][mynick] = new_hash
+        return new_hash
+
+    def verify_verifications(self, bot_nicks, mynick):
+        for botnick in bot_nicks:
+            # check if we have verifucations from all botnicks
+            if botnick not in self.vote_verifications[self.verification_id].keys():
+                return None
 
         #print "(verify) *** All bots verified"
         verifications = {}
-        for botnick in self.vote_verifications.keys():
-            vhash = self.vote_verifications[botnick]
+        for botnick in self.vote_verifications[self.verification_id].keys():
+            vhash = self.vote_verifications[self.verification_id][botnick]
             if vhash not in verifications:
                 verifications[vhash] = 0
             verifications[vhash] += 1
 
         self.sorted_vote_verifications = sorted(verifications.items(), key=operator.itemgetter(1))
         #print "(verify) *** sorted verifications: %s" % (self.sorted_vote_verifications)
-        if self.vote_verifications[mynick] != self.sorted_vote_verifications[-1][0]: # my vhash == most popular vhash
+        if self.vote_verifications[self.verification_id][mynick] != self.sorted_vote_verifications[-1][0]: # my vhash == most popular vhash
             return False
         else:
             return True
@@ -345,21 +354,65 @@ class Swarm():
         if target != self.channel:
             return
 
-        voteid = arguments[0]
-        votehash = arguments[1]
-        if voteid != self.vote.current_voteid:
-            print "(verify) incoming voteid (%s) doesn't match current_voteid (%s), ignoring." % (voteid, self.vote.current_voteid)
+        verify_id = arguments[0]
+        verify_hash = arguments[1]
+
+        if verify_id == self.verify.verification_id:
+            print "(verify) known verify id, let's check verifications"
+            verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
+            if verify_check is None:
+                # not all bot's verified yet, let's wait
+                pass
+
+            if verify_check == True:
+                self.verify.vote_verifications = {}
+                print "*** I'M OK!!"
+
+            elif verify_check == False:
+                self.verify.reset_verifications()
+                self.delay_vote(randrange(5, 25), 30)
+
             return
 
-        self.verify.vote_verifications[source.nick] = votehash
-        self.verify.vote_verifications[self.server.mynick] = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid)
 
-        if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.server.mynick):
-            self.verify.vote_verifications = {}
-            print "*** I'M OK!!"
+        print "(verify) New verifcation id, let's verify us!"
+        self.verify.verification_id = verify_id
+        if self.verify.verification_id not in self.verify.vote_verifications:
+            self.verify.vote_verifications[self.verify.verification_id] = {}
+        print "a"
+        self.verify.vote_verifications[self.verify.verification_id][source.nick] = verify_hash
+        self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid, self.server.mynick)
+        print "b"
+        if not self.verify.nick_is_verified(self.server.mynick):
+            print "c"
+            self.send_verification()
         else:
-            self.verify.vote_verifications = {}
-            self.delay_vote(randrange(5, 25), 30)
+            print "(verify) I'm verified!"
+
+
+        verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
+        if verify_check == True:
+            self.verify.reset_verifications()
+            print "*** I'M OK!!"
+
+        elif verify_check == False:
+            self.verify.reset_verifications()
+            self.vote.unvoted_id = randrange(0, 65535)
+            wait_time = randrange(5, 20)
+            print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
+            print "---"
+            print self.verify.vote_verifications[self.verify.verification_id]
+            print self.verify.sorted_vote_verifications
+            print "--"
+            self.vote.next_vote_time = time.time() + wait_time
+            self.bot.add_timer(
+                    datetime.timedelta(0, wait_time),
+                    False,
+                    self.delayed_vote,
+                    30
+                )
+
+
 
 
     def incoming_vote(self, source, target, arguments):
@@ -423,9 +476,9 @@ class Swarm():
 
         # send vote verification in a while
         self.bot.add_timer(
-                datetime.timedelta(0, wait_time + 300),
+                datetime.timedelta(0, wait_time + 90),
                 False,
-                self.send_verification
+                self.reoccuring_verification
             )
 
     def swarmchan_part(self, nick):
@@ -467,7 +520,18 @@ class Swarm():
 
 
     def send_verification(self):
-        """ send_verification() """
+        print "(verify) send_verification()"
+        verification_hash = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid, self.server.mynick)
+        self.last_verification_time = time.time()
+
+        self.client.tell(self.channel,"%sverify %d %s" % (
+                self.bot.settings.trigger,
+                self.verify.verification_id,
+                verification_hash))
+
+
+    def reoccuring_verification(self):
+        """ reoccuring_verification() """
         wait_time = randrange(
                 300,
                 900
@@ -475,7 +539,7 @@ class Swarm():
         self.bot.add_timer(
                 datetime.timedelta(0, wait_time),
                 False,
-                self.send_verification
+                self.reoccuring_verification
             )
 
         if time.time() - self.last_verification_time < 60:
@@ -485,22 +549,30 @@ class Swarm():
             print "(swarm) Throtteling verifcations, last vote %d secs ago" % (time.time() - self.vote.last_vote_time)
             return
 
-        verificationid = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid])
-        self.verify.vote_verifications[self.server.mynick] = verificationid
-        self.last_verification_time = time.time()
+        self.verify.verification_id = randrange(0,65565)
+        self.send_verification()
 
-        self.client.tell(self.channel,"%sverify %d %s" % (
-                self.bot.settings.trigger,
-                self.vote.current_voteid,
-                self.verify.vote_verifications[self.server.mynick]))
-        if self.verify.verify_verifications(self.vote.votes[self.vote.current_voteid], self.server.mynick):
-            self.verify.vote_verifications = {}
+        verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
+
+        if verify_check is None:
+            print "not all verifications yet."
+            print " * %s" % (self.verify.vote_verifications[self.verify.verification_id])
+            print " * %s" % (self.vote.get_swarm_members())
+            return
+
+        elif verify_check == True:
+            self.verify.reset_verifications()
             print "*** I'M OK!!"
-        else:
+
+        elif verify_check == False:
             self.verify.reset_verifications()
             self.vote.unvoted_id = randrange(0, 65535)
             wait_time = randrange(5, 20)
             print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
+            print "---"
+            print self.verify.vote_verifications[self.verify.verification_id]
+            print self.verify.sorted_vote_verifications
+            print "--"
             self.vote.next_vote_time = time.time() + wait_time
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
