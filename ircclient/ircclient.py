@@ -77,8 +77,8 @@ class IRCClient(AutoReloader):
         self.swarm = Swarm(bot, self)
         self.swarm_enabled = True
 
-        self.deffered_join_all = self.bot.settings.deferred_join_all
-        self.deffered_join_swarm = self.bot.settings.deferred_join_swarm
+        self.deferred_join_all = bot.settings.deferred_join_all
+        self.deferred_join_swarm = bot.settings.deferred_join_swarm
 
 
 
@@ -433,21 +433,6 @@ class IRCClient(AutoReloader):
         self.send("PONG :" + tupels[4])
 
 
-
-# --
-# on_privmsg(self): louie!~louie@louie.se : #dreamhack.c&c : tycker du inte om mina fina namn? :)
-# --
-# (swarm) on_privmsg()
-# {'target': <ircclient.ircobjects.Channel instance at 0x103a92bd8>, 'bot': <ircbot.IRCBot object at 0x103a84cd0>, 'swarm_match': False, 'source': <ircclient.ircobjects.User instance at 0x103a92d88>, 'client': <ircclient.ircclient.IRCClient object at 0x103a84d50>, 'message': 'tycker du inte om mina fina namn? :)'}
-# -
-# --
-# on_privmsg(self): bandb!~bang@static-237-166.junet.se : Olivia : hejsan dinf isk
-# --
-# (swarm) on_privmsg()
-# {'target': None, 'bot': <ircbot.IRCBot object at 0x103a84cd0>, 'swarm_match': False, 'source': None, 'client': <ircclient.ircclient.IRCClient object at 0x103a84d50>, 'message': 'hejsan dinf isk'}
-# -
-
-
     def on_privmsg(self, tupels):
         source, target, message = tupels[2], tupels[4], tupels[5]
         source_nick = self.get_nick(source)
@@ -481,19 +466,12 @@ class IRCClient(AutoReloader):
         #     source_user = None
 
 
-        try:
-            if target == self.swarm.channel and message.split(' ')[0] == '.vote':
-                self.swarm.incoming_vote(source_obj, target, message.split(' ')[1:])
-            if target == self.swarm.channel and message.split(' ')[0] == '.verify':
-                self.swarm.incoming_verification(source_obj, target, message.split(' ')[1:])
-            if target == self.swarm.channel and message.split(' ')[0] == '.verifail':
-                self.swarm.incoming_verification(source_obj, target, message.split(' ')[1:])
-        except Exception, e:
-            print "--------------------"
-            print "exception:\n%s -- %s" % (e.__class__.__name__, e)
-            print "on_privmsg(%s)" % (str(tupels))
-            print "--------------------"
-            pass
+        if target == self.swarm.channel and message.split(' ')[0] == '.vote':
+            self.swarm.incoming_vote(source_obj, target, message.split(' ')[1:])
+        if target == self.swarm.channel and message.split(' ')[0] == '.verify':
+            self.swarm.incoming_verification(source_obj, target, message.split(' ')[1:])
+        if target == self.swarm.channel and message.split(' ')[0] == '.verifail':
+            self.swarm.incoming_verification(source_obj, target, message.split(' ')[1:])
 
         event = {
             "client": self,
@@ -613,7 +591,7 @@ class IRCClient(AutoReloader):
     def tick(self):
         now = datetime.datetime.now()
         if self.wait_until and self.wait_until > now:
-            self.log_line("TICK DEFFERED: %s > %s" % (self.wait_until, now))
+            self.log_line("TICK DEFERED: %s > %s" % (self.wait_until, now))
             return
 
         if self.connected:

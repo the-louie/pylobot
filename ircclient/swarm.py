@@ -225,6 +225,7 @@ class Verify():
         for botnick in bot_nicks:
             # check if we have verifucations from all botnicks
             if botnick not in self.vote_verifications[self.verification_id].keys():
+                #print "(verify) %s is missing among the verifications (%s)" % (botnick, self.vote_verifications[self.verification_id].keys())
                 return None
 
         #print "(verify) *** All bots verified"
@@ -391,11 +392,12 @@ class Swarm():
         if target != self.channel:
             return
 
-        verify_id = arguments[0]
-        verify_hash = arguments[1]
+        verify_id = int(arguments[0])
+        verify_hash = str(arguments[1])
 
-        if verify_id == self.verify.verification_id:
+        if int(verify_id) == int(self.verify.verification_id):
             print "(verify) known verify id, let's check verifications"
+            self.verify.vote_verifications[self.verify.verification_id][source.nick] = verify_hash
             verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
             if verify_check is None:
                 # not all bot's verified yet, let's wait
@@ -406,25 +408,21 @@ class Swarm():
                 print "*** I'M OK!!"
 
             elif verify_check == False:
+                print "*** I'M OFFFFFFFF :U( :( :( "
                 self.verify.reset_verifications()
                 self.delay_vote(randrange(5, 25), 30)
 
             return
 
 
-        print "(verify) New verifcation id, let's verify us!"
+        # print "(verify) New verifcation id, let's verify us!"
         self.verify.verification_id = verify_id
         if self.verify.verification_id not in self.verify.vote_verifications:
             self.verify.vote_verifications[self.verify.verification_id] = {}
-        print "a"
         self.verify.vote_verifications[self.verify.verification_id][source.nick] = verify_hash
         self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid, self.server.mynick)
-        print "b"
-        if not self.verify.nick_is_verified(self.server.mynick):
-            print "c"
-            self.send_verification()
-        else:
-            print "(verify) I'm verified!"
+        self.send_verification()
+        # print "(verify) I've verified!"
 
 
         verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
@@ -437,10 +435,6 @@ class Swarm():
             self.vote.unvoted_id = randrange(0, 65535)
             wait_time = randrange(5, 20)
             print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
-            print "---"
-            print self.verify.vote_verifications[self.verify.verification_id]
-            print self.verify.sorted_vote_verifications
-            print "--"
             self.vote.next_vote_time = time.time() + wait_time
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
@@ -563,7 +557,7 @@ class Swarm():
 
         self.client.tell(self.channel,"%sverify %d %s" % (
                 self.bot.settings.trigger,
-                self.verify.verification_id,
+                int(self.verify.verification_id),
                 verification_hash))
 
 
@@ -592,26 +586,22 @@ class Swarm():
         verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
 
         if verify_check is None:
-            print "not all verifications yet."
-            print " * %s" % (self.verify.vote_verifications[self.verify.verification_id])
-            print " * %s" % (self.vote.get_swarm_members())
+            # print "not all verifications yet."
+            # print " * %s" % (self.verify.vote_verifications[self.verify.verification_id])
+            # print " * %s" % (self.vote.get_swarm_members())
             return
 
         elif verify_check == True:
             self.verify.reset_verifications()
             print "*** I'M OK!!"
             self.verified = True
-            self.client.bot.settings.deferred_join_all = False
+            self.client.deferred_join_all = False
 
         elif verify_check == False:
             self.verify.reset_verifications()
             self.vote.unvoted_id = randrange(0, 65535)
             wait_time = randrange(5, 20)
             print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
-            print "---"
-            print self.verify.vote_verifications[self.verify.verification_id]
-            print self.verify.sorted_vote_verifications
-            print "--"
             self.vote.next_vote_time = time.time() + wait_time
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
