@@ -391,15 +391,15 @@ class Swarm():
 
         if target != self.channel:
             return
-        swarm_bots = self.swarm.get_swarm_members()
+        swarm_bots = self.vote.get_swarm_members()
         if source.nick not in swarm_bots:
-            print "(verify) %s not in swarm (%s)" % (source.nick, self.swarm_bots)
+            print "(verify) %s not in swarm (%s)" % (source.nick, swarm_bots)
             return
 
         verify_id = int(arguments[0])
         verify_hash = str(arguments[1])
 
-        if int(verify_id) == int(self.verify.verification_id):
+        if int(verify_id) == int(self.verify.verification_id) and self.verify.verification_id in self.verify.vote_verifications:
             print "(verify) known verify id, let's check verifications"
             self.verify.vote_verifications[self.verify.verification_id][source.nick] = verify_hash
             verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
