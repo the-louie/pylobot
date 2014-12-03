@@ -391,6 +391,10 @@ class Swarm():
 
         if target != self.channel:
             return
+        swarm_bots = self.swarm.get_swarm_members()
+        if source.nick not in swarm_bots:
+            print "(verify) %s not in swarm (%s)" % (source.nick, self.swarm_bots)
+            return
 
         verify_id = int(arguments[0])
         verify_hash = str(arguments[1])
