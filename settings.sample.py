@@ -18,7 +18,7 @@ class Settings(AutoReloader):                      # these two lines
 			},
 	     }
 
-	# if we supply qauth via command line deffer joins
+	# if we supply qauth via command line defer joins
 	# until we are mode +x
 	if len(argv) == 3:
 		deferred_join_all = True

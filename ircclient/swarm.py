@@ -282,12 +282,12 @@ class Swarm():
 
     def join_swarm_channels(self):
         print "(swarm) join_swarm_channels()"
-        if self.client.deffered_join_swarm:
+        if self.client.deferred_join_swarm:
             wait_time = randrange(
                     10,
                     15
                 )
-            print "(swarm) * deffered, waiting for %s secs" % wait_time
+            # print "(swarm) * deferred, waiting for %s secs" % wait_time
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
                     False,
@@ -326,6 +326,17 @@ class Swarm():
                     False,
                     self.op_bots
                 )
+
+        delay = randrange(5, 10)
+        self.swarm_op_timer = self.bot.add_timer(
+                datetime.timedelta(0, delay),
+                False,
+                self.enable_normal_channels
+            )
+
+
+    def enable_normal_channels(self):
+        self.client.deferred_join_all = False
 
     def disable(self):
         """
