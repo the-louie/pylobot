@@ -12,6 +12,9 @@ import plugin_handler
 import error_handler
 from ircclient import ircclient
 
+import logging
+logger = logging.getLogger('landlady')
+
 # Call plugins_on_load only on first import
 try:
     IRCBot
@@ -79,9 +82,9 @@ class IRCBot(AutoReloader):
         self.timer_id = 0
 
         server_settings = self.settings.server
-        print "Connecting to server at %s:%s..." % (
+        logger.info("Connecting to server at %s:%s..." % (
               server_settings['server_address'],
-              server_settings['server_port'])
+              server_settings['server_port']))
         self.client = ircclient.IRCClient(
                                     self,
                                     server_settings['server_address'],
@@ -155,14 +158,14 @@ class IRCBot(AutoReloader):
         self.execute_plugins("on_mode", event)
 
     def debug_info(self, *argv):
-        print "(net) name: %s" % self.client.server.name
-        print "(net) nick: %s" % self.client.server.mynick
-        print "(net) channels: %d" % len(self.client.server.all_channels)
-        print "(net) known users: %d" % len(self.client.server.all_users)
+        logger.debug("(net) name: %s" % self.client.server.name)
+        logger.debug("(net) nick: %s" % self.client.server.mynick)
+        logger.debug("(net) channels: %d" % len(self.client.server.all_channels))
+        logger.debug("(net) known users: %d" % len(self.client.server.all_users))
 
         for channel in self.client.server.all_channels:
-            print "(%s) users: %d" % (channel.name, len(channel.user_list))
-            print "(%s) bans: %d" % (channel.name, len(channel.ban_list))
+            logger.debug("(%s) users: %d" % (channel.name, len(channel.user_list)))
+            logger.debug("(%s) bans: %d" % (channel.name, len(channel.ban_list)))
             # for ban in channel.ban_list:
             #     print "(%s)\t * %s (%s @%s)" % (channel.name, ban.banmask, ban.banner_nick, ban.timestamp)
 
@@ -170,22 +173,22 @@ class IRCBot(AutoReloader):
         print "(swarm) enabled: %s" % self.client.swarm.enabled
         if self.client.swarm.enabled:
             #print "(swarm) old votes: %s" % (self.client.swarm.votes)
-            print "(swarm) voteid: %s (%s)" % (
-                    self.client.swarm.vote.current_voteid, self.client.swarm.vote.range)
-            print "(swarm) last vote: %s s ago" % (
-                    int(round(time.time() - self.client.swarm.vote.last_vote_time)))
-            print "(swarm) next vote in: %s s" % (
-                    int(round(self.client.swarm.vote.next_vote_time - time.time())))
-            print "(swarm) channel: %s" % (
-                    self.client.swarm.channel)
-            print "(swarm) votes: %s" % (
-                    self.client.swarm.vote.get_current_votes())
-            print "(swarm) verifications: %s" % (
-                    self.client.swarm.verify.sorted_vote_verifications)
-            print "(swarm) verification bots: %s" % (
-                    self.client.swarm.verify.vote_verifications.keys())
-            print "(swarm) op timer: %s" % (
-                    self.client.swarm.swarm_op_timer)
+            logger.debug("(swarm) voteid: %s (%s)" % (
+                    self.client.swarm.vote.current_voteid, self.client.swarm.vote.range))
+            logger.debug("(swarm) last vote: %s s ago" % (
+                    int(round(time.time() - self.client.swarm.vote.last_vote_time))))
+            logger.debug("(swarm) next vote in: %s s" % (
+                    int(round(self.client.swarm.vote.next_vote_time - time.time()))))
+            logger.debug("(swarm) channel: %s" % (
+                    self.client.swarm.channel))
+            logger.debug("(swarm) votes: %s" % (
+                    self.client.swarm.vote.get_current_votes()))
+            logger.debug("(swarm) verifications: %s" % (
+                    self.client.swarm.verify.sorted_vote_verifications))
+            logger.debug("(swarm) verification bots: %s" % (
+                    self.client.swarm.verify.vote_verifications.keys()))
+            logger.debug("(swarm) op timer: %s" % (
+                    self.client.swarm.swarm_op_timer))
 
 
         self.execute_plugins("debug_info");

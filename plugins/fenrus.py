@@ -5,6 +5,8 @@ import hashlib
 from random import randrange
 import datetime
 import time
+import logging
+logger = logging.getLogger('landlady')
 
 class Fenrus(Command):
 	def __init__(self):
@@ -33,7 +35,7 @@ class Fenrus(Command):
 			return
 		targetnick = user_obj.nick
 
-		print "(fenrus) %s joined masterchannel (%s)" % (targetnick, chan_obj.name)
+		logger.debug("(fenrus) %s joined masterchannel (%s)", targetnick, chan_obj.name)
 
 		if targetnick == netw_obj.mynick:
 			delay = float(randrange(1200, 3000)/10)
@@ -43,29 +45,23 @@ class Fenrus(Command):
 				return False
 
 			for slave_channel_name in self.slave_channels:
-				print "(fenrus) slave_channel_name: %s" % slave_channel_name
+				logger.debug("(fenrus) slave_channel_name: %s", slave_channel_name)
 				try:
 					slave_channel = netw_obj.channel_by_name(slave_channel_name)
 					if not slave_channel.has_nick(targetnick):
-						# print "(fenrus) %s not in %s" % (targetnick, slave_channel_name)
 						continue
 					flags = slave_channel.get_flags(targetnick)
-					# print "(fenus) flags: %s" % flags
 				except Exception, e:
-					print "(fenrus) EXCEPTION: %s: %s" % (e.__class__.__name__, e)
+					logger.error("(fenrus) EXCEPTION: %s: %s", e.__class__.__name__, e)
 					return
 
 				if not flags or ("+" not in flags and "@" not in flags):
-					print "(fenrus) *** voice *** %s in %s" % (targetnick, slave_channel_name)
 					self.client.send('MODE %s +v %s' % (slave_channel_name, targetnick))
-				else:
-					print "(fenrus) no action, %s has %s in %s" % (targetnick, flags, slave_channel_name)
 
 	def sync_channels(self):
-		print "(fenrus) sync_channels"
+		logger.debug("(fenrus) sync_channels")
 		delay = float(randrange(3000, 12000)/10)
 		self.bot.add_timer(datetime.timedelta(0, delay), False, self.sync_channels)
-		#print "(fenrus) - next sync: %d" % (int(round(time.time() + delay)))
 		# don't sync too often
 		if time.time() - self.last_sync_time < 300:
 			return
@@ -75,7 +71,7 @@ class Fenrus(Command):
 			master_channel = self.server.channel_by_name(self.master_channel)
 			master_users = master_channel.user_list
 		except Exception, e:
-			print "(fenrus) ERROR: %s %s" % (e.__class__.__name__, e)
+			logger.error("(fenrus) %s %s", e.__class__.__name__, e)
 			return
 
 		for master_user in master_users:
@@ -85,18 +81,12 @@ class Fenrus(Command):
 			for slave_channel_name in self.slave_channels:
 				slave_channel = self.server.channel_by_name(slave_channel_name)
 				if not slave_channel.has_op(self.server.mynick):
-					#print "(fenrus) I'm not op in %s, continuing" % (slave_channel.name)
 					continue
 				if not slave_channel.has_nick(master_user.nick):
-					#print "(fenrus) %s not in %s, continuing" % (master_user.nick, slave_channel_name)
 					continue
-				#print "(fenrus) master_user.channel_flags(%s): %s" % (slave_channel_name, master_user.channel_flags(slave_channel_name))
 				flags = master_user.channel_flags(slave_channel_name)
 				if not flags or ("+" not in flags and "@" not in flags):
-					#print "(fenrus) *** voice *** %s in %s" % (master_user.nick, slave_channel_name)
 					self.client.send('MODE %s +v %s' % (slave_channel_name, master_user.nick))
-				# else:
-				# 	print "(fenrus) no action, %s has %s in %s" % (master_user.nick, flags, slave_channel_name)
 
 
 

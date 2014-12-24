@@ -7,6 +7,9 @@ import copy
 import time
 import datetime
 import base64
+import logging
+logger = logging.getLogger('landlady')
+
 #from ll_swarm import Swarm
 
 class Settings():
@@ -37,7 +40,7 @@ class LLUtils():
     '''
     def db_real_connect(self):
         if (self.dbcon) and (self.dbcur):
-            print "INFO: Already connected to db."
+            logger.error("Already connected to db.")
             return True
 
         # connect to db
@@ -45,7 +48,7 @@ class LLUtils():
             self.dbcon = sqlite3.connect('data/landlady.db')
             self.dbcur = self.dbcon.cursor()
         except Exception, e:
-            print "ERROR: Couldn't open database, %s" % e
+            logger.error("Couldn't open database, %s", e)
             sys.exit(1)
 
 
@@ -56,38 +59,38 @@ class LLUtils():
         try:
             self.dbcur.execute("CREATE TABLE IF NOT EXISTS landlady_banmem (timestamp INT,  targetnick TEXT, targethost TEXT, command TEXT, sourcenick TEXT, duration INT)")
         except Exception, e:
-            print "ERROR: couln't create table, %s" % e
+            logger.error("couln't create table, %s", e)
 
         # on first run we might have to create the settings table
         try:
             self.dbcur.execute("CREATE TABLE IF NOT EXISTS landlady_config (section TEXT, key TEXT, value TEXT)")
         except Exception, e:
-            print "ERROR: couln't create table, %s" % e
+            logger.error("ERROR: couln't create table, %s", e)
 
         # load the data from the db, and if there's default values missing add them in
         for section in DefaultSettings.default.keys():
-            print "INFO: Loading %s" % section
+            logger.debug("INFO: Loading %s", section)
             try:
                 self.dbcur.execute('SELECT key, value FROM landlady_config WHERE section = ?', [section])
             except Exception, e:
-                print "ERROR: Fetching config, %s" % (e)
+                logger.error("ERROR: Fetching config, %s", e)
                 sys.exit(1)
 
             loaded_vals = []
             rows = self.dbcur.fetchall()
             if len(rows) == 0:
-                print "WARNING: No settings found for %s, using default" % section
+                logger.warn("WARNING: No settings found for %s, using default", section)
             for row in rows:
                 loaded_vals.append(row[0])
                 DefaultSettings.default[section][row[0]] = row[1]
 
             for key in DefaultSettings.default[section].keys():
                 if key not in loaded_vals:
-                    print "INFO: Updating %s with %s=%s" % (section,key,DefaultSettings.default[section][key])
+                    logger.debug("Updating %s with %s=%s", section,key,DefaultSettings.default[section][key])
                     try:
                         self.dbcur.execute('INSERT INTO landlady_config (section, key, value) VALUES (?,?,?)', [section, key, DefaultSettings.default[section][key]])
                     except Exception, e:
-                        print "ERROR: Couln't update database, %s" % e
+                        logger.error("Couln't update database, %s", e)
 
             self.dbcon.commit()
 
@@ -96,11 +99,11 @@ class LLUtils():
             mess = DefaultSettings.default['kb_commands'][key].split(' ',1)[1]
             time = DefaultSettings.default['kb_commands'][key].split(' ',1)[0]
             self.Settings.kb_commands[key] = (time,mess)
-            print "DEBUG: kb_commands loading %s '%s' -> (%s,%s)." % (key,DefaultSettings.default['kb_commands'][key],DefaultSettings.default['kb_commands'][key][1],DefaultSettings.default['kb_commands'][key][0])
+            logger.debug("kb_commands loading %s '%s' -> (%s,%s).", key,DefaultSettings.default['kb_commands'][key],DefaultSettings.default['kb_commands'][key][1],DefaultSettings.default['kb_commands'][key][0])
 
         for key in DefaultSettings.default['kb_settings'].keys():
             self.Settings.kb_settings[key] = copy.copy(DefaultSettings.default['kb_settings'][key])
-            print "DEBUG: kb_settings, %s = %s" % (key,DefaultSettings.default['kb_settings'][key])
+            logger.debug("kb_settings, %s = %s", key,DefaultSettings.default['kb_settings'][key])
 
         self.Settings.kb_settings['ban_timemul'] = DefaultSettings.default['kb_settings']['ban_timemul'].split(',')
         self.Settings.kb_settings['child_chans'] = DefaultSettings.default['kb_settings']['child_chans'].split(' ')
@@ -126,7 +129,7 @@ class LLUtils():
         trigger_nick = source.split('!')[0]
 
         if not cmd in self.Settings.kb_commands:
-            print "ERROR: Command (%s) not found" % cmd
+            logger.error("Command (%s) not found", cmd)
             return None
 
         if not bantime_int:
@@ -141,7 +144,7 @@ class LLUtils():
 
         banmask = self.create_banmask(user, hostlist, targetnick)
         if not banmask:
-            print "ERROR: Couldn't find user %s" % (targetnick)
+            logger.error("Couldn't find user %s", targetnick)
             return None
 
         factor = int(self.get_punish_factor(banmask))
@@ -159,7 +162,7 @@ class LLUtils():
             )
 
 
-        print "(kb) cmd: %s, reason: %s, targetnick: %s, factor: %s, bantime: %s" % (cmd, reason, targetnick, factor, bantime_int)
+        logger.debug("(kb) cmd: %s, reason: %s, targetnick: %s, factor: %s, bantime: %s", cmd, reason, targetnick, factor, bantime_int)
 
         return {
                 'reason': reason,
@@ -213,19 +216,17 @@ class LLUtils():
                 if m:
                     matches.append(usernick)
             except Exception, e:
-                print "ERROR when regexing: %s %s" % (e.__class__.__name__, e)
-                print "\t%s, %s" % (banmask, userhost)
+                logger.error("ERROR when regexing: %s %s", e.__class__.__name__, e)
+                logger.error("\t%s, %s", banmask, userhost)
 
         return matches
 
     def create_banmask(self, targetnick, user, host, hostlist):
         if self.is_numeric_ip(host):
-            print "\t n"
             hits = 0
             banmask = '*!*@%s' % '.'.join(host.split('.')[:3])+'.*'
             matches = self.match_banmask(hostlist, targetnick, banmask)
             hits += len(matches)
-            print "\t",hits,banmask,matches
             if hits == 0:
                 return banmask
 
@@ -288,12 +289,12 @@ class LLUtils():
         return banmask
 
     def get_punish_factor(self, banmask):
-        print "get_punish_factor(self, %s)" % banmask
+        logger.debug("get_punish_factor(self, %s)", banmask)
         self.dbcur.execute("SELECT count(*) FROM landlady_banmem WHERE targethost = ?", (banmask,))
         try:
             count = int(self.dbcur.fetchone()[0])
         except Exception, e:
-            print "ERROR: Couldn't get ban count: %s" % e
+            logger.error("ERROR: Couldn't get ban count: %s", e)
             return 1
 
         if count >= len(self.Settings.kb_settings['ban_timemul']):
@@ -319,7 +320,6 @@ class LLUtils():
         self.dbcon.commit()
 
     def purge_kickbans(self):
-        #print "PURGING OLD BANS"
         result = self.dbcur.execute("""SELECT targethost FROM
                 landlady_banmem
             WHERE
@@ -334,7 +334,6 @@ class LLUtils():
             c = self.client.server.channel_by_name(channel)
             for banmask in unbanlist:
                 if c.is_banned(banmask):
-                    #print "\t%s: %s" % (channel, banmask)
                     c.remove_ban(banmask)
                     self.unban(channel, banmask)
                 self.dbcur.execute("DELETE FROM landlady_banmem WHERE targethost LIKE ?", (banmask,))
@@ -353,7 +352,6 @@ class LLUtils():
         self.client.tell(self.Settings.swarm['channel'], '.banned '+" ".join(result))
 
     def unban(self, channel, banmask):
-        #print "DEBUG: Unbanning %s in %s" % (banmask, channel)
         self.client.send('MODE %s -b %s' % (channel, banmask))
 
     def add_to_banlist(self, channel, sourcenick, banmask):

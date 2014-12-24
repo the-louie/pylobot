@@ -3,6 +3,8 @@ import time
 import hashlib
 import datetime
 import operator
+import logging
+logger = logging.getLogger('landlady')
 
 MIN_VOTE_TIME = 1600
 
@@ -23,7 +25,7 @@ class Votes():
     def create_vote_hash(self, voteid, random, nickuserhost):
         timebit = int(round(int(datetime.datetime.now().strftime("%s"))/300))
         instring = self.secret + str(voteid) + str(random) + str(nickuserhost) + str(timebit)
-        print "(votes) creating votehash with: %s" % (instring)
+        logger.info("(votes) creating votehash with: %s", instring)
         outstring = hashlib.sha512(instring + hashlib.sha512(instring).digest()).hexdigest()
         return outstring
 
@@ -87,7 +89,7 @@ class Votes():
 
     def throttle_votes(self):
         if (time.time() - self.last_vote_time) < self.min_vote_time:
-            print "(swarm) reoccuring_vote(): throttling vote. %s < %s" % (
+            logger.info("(swarm) reoccuring_vote(): throttling vote. %s < %s",
                     time.time() - self.last_vote_time,
                     self.min_vote_time)
             return True
@@ -139,7 +141,6 @@ class Votes():
 
         calc_hash = self.create_vote_hash(vote_id, vote_value, sourcenick)
         if calc_hash != vote_hash_str:
-            print "(swarm) vote hash missmatch:\n\tcalc: %s\n\tinco: %s\n" % (calc_hash, vote_hash_str)
             return (None, None)
 
         return (vote_id, vote_value)
@@ -151,7 +152,7 @@ class Votes():
 
 
         if incoming_vote_random in self.votes[incoming_vote_id].values():
-            print "ERROR: save vote value twice"
+            logger.error("ERROR: save vote value twice")
             return False
 
         self.votes[incoming_vote_id][source_nick] = incoming_vote_random
@@ -165,7 +166,7 @@ class Votes():
 
         elif self.vote_reply_timer:
             # already a timer running
-            print "(swarm) triggered vote but vote_reply_timer is %s" % (self.vote_reply_timer)
+            logger.debug("(swarm) triggered vote but vote_reply_timer is %s", self.vote_reply_timer)
             return False
         else:
             # we already voted on this
@@ -202,7 +203,6 @@ class Verify():
         votedata = self.secret + "[" + str(voteid) + "]"
         for k in sorted(votes.keys()):
             votedata += '['+str(k).lower()+str(votes[k])+']'
-        #print "(verify) *** VERIFICATION: '%s'" % (votedata)
         return hashlib.sha512(votedata + str(hashlib.sha512(votedata).digest())).hexdigest()
 
     def nick_is_verified(self, nick):
@@ -225,10 +225,8 @@ class Verify():
         for botnick in bot_nicks:
             # check if we have verifucations from all botnicks
             if botnick not in self.vote_verifications[self.verification_id].keys():
-                #print "(verify) %s is missing among the verifications (%s)" % (botnick, self.vote_verifications[self.verification_id].keys())
                 return None
 
-        #print "(verify) *** All bots verified"
         verifications = {}
         for botnick in self.vote_verifications[self.verification_id].keys():
             vhash = self.vote_verifications[self.verification_id][botnick]
@@ -237,7 +235,6 @@ class Verify():
             verifications[vhash] += 1
 
         self.sorted_vote_verifications = sorted(verifications.items(), key=operator.itemgetter(1))
-        #print "(verify) *** sorted verifications: %s" % (self.sorted_vote_verifications)
         if self.vote_verifications[self.verification_id][mynick] != self.sorted_vote_verifications[-1][0]: # my vhash == most popular vhash
             return False
         else:
@@ -282,13 +279,12 @@ class Swarm():
 
 
     def join_swarm_channels(self):
-        print "(swarm) join_swarm_channels()"
+        logger.debug("(swarm) join_swarm_channels()")
         if self.client.deferred_join_swarm:
             wait_time = randrange(
                     10,
                     15
                 )
-            # print "(swarm) * deferred, waiting for %s secs" % wait_time
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
                     False,
@@ -302,12 +298,11 @@ class Swarm():
                     self.bot.join(channel[0])
 
     def nick_matches(self, targetnick):
-        #print "(swarm) nick_matches(self, %s)" % (targetnick)
         if not self.enabled:
-            print "(swarm) not enabled, exiting"
+            logger.debug("(swarm) not enabled, exiting")
             return None
         if targetnick is None:
-            print "(swarm) target nick is None, exiting"
+            logger.debug("(swarm) target nick is None, exiting")
             return True
 
         return self.vote.nick_matches(targetnick)
@@ -316,7 +311,7 @@ class Swarm():
         """
         enable swarm functions
         """
-        print "(swarm) enable"
+        logger.debug("(swarm) enable")
         self.enabled = True
 
         # make sure the swarm is opped periodically
@@ -343,35 +338,26 @@ class Swarm():
         """
         disable swarm functions
         """
-        print "(swarm) disable"
+        logger.debug("(swarm) disable")
         self.enabled = False
 
     def op_bots(self):
         """
         op all members of the swarm where appropriate
         """
-        # print "\n-----------------\n"
-        # print "(swarm.op_bots()) start"
-
         if not self.enabled:
-            print "(swarm) * not enabled"
+            logger.debug("(swarm) * not enabled")
             return
 
         for channel_name in self.opchans:
             channel = self.client.server.channel_by_name(channel_name)
-            # print "(swarm.op_bots()) * checking %s" % channel_name
             if not channel.has_op(self.client.nick): # only check channels we have op in
-                # print "(swarm.op_bots()) * Not op in %s" % channel_name
                 continue
             for botnick in self.vote.get_swarm_members():
-                # print "(swarm.op_bots()) * checking %s" % botnick
                 if botnick == self.client.nick: # don't try to op myself
-                    # print "(swarm.op_bots()) * it's ME! eject eject eject"
                     continue
                 if channel.has_nick(botnick) and not channel.has_op(botnick):
-                    # print "(swarm.op_bots()) * let's op %s in %s" % (botnick, channel_name)
                     self.client.send("MODE %s +o %s" % (channel_name, botnick))
-                # print "(swarm.op_bots()) * %s in_channel: %s, has_op: %s, has_voice: %s" % (botnick, channel.has_nick(botnick), channel.has_op(botnick), channel.has_voice(botnick))
 
         delay = randrange(60, 120)
         self.swarm_op_timer = self.bot.add_timer(
@@ -379,13 +365,10 @@ class Swarm():
                 False,
                 self.op_bots
             )
-        # print "(swam.op_bots()) * rechecking again in %ss" % (delay);
-        # print "\n-----------------\n"
-
 
 
     def incoming_verification(self, source, target, arguments):
-        print "(swarm) incoming_verification(self, %s, %s, %s)" % (source, target, arguments)
+        logger.debug("(swarm) incoming_verification(self, %s, %s, %s)", source, target, arguments)
         if not self.enabled:
             return
 
@@ -393,14 +376,14 @@ class Swarm():
             return
         swarm_bots = self.vote.get_swarm_members()
         if source.nick not in swarm_bots:
-            print "(verify) %s not in swarm (%s)" % (source.nick, swarm_bots)
+            logger.debug("(verify) %s not in swarm (%s)", source.nick, swarm_bots)
             return
 
         verify_id = int(arguments[0])
         verify_hash = str(arguments[1])
 
         if int(verify_id) == int(self.verify.verification_id) and self.verify.verification_id in self.verify.vote_verifications:
-            print "(verify) known verify id, let's check verifications"
+            logger.debug("(verify) known verify id, let's check verifications")
             self.verify.vote_verifications[self.verify.verification_id][source.nick] = verify_hash
             verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
             if verify_check is None:
@@ -409,36 +392,33 @@ class Swarm():
 
             if verify_check == True:
                 self.verify.vote_verifications = {}
-                print "*** I'M OK!!"
 
             elif verify_check == False:
-                print "*** I'M OFFFFFFFF :U( :( :( "
+                logger.error("Verification error, resetting and revoting")
                 self.verify.reset_verifications()
                 self.delay_vote(randrange(5, 25), 30)
 
             return
 
 
-        # print "(verify) New verifcation id, let's verify us!"
         self.verify.verification_id = verify_id
         if self.verify.verification_id not in self.verify.vote_verifications:
             self.verify.vote_verifications[self.verify.verification_id] = {}
         self.verify.vote_verifications[self.verify.verification_id][source.nick] = verify_hash
         self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid, self.server.mynick)
         self.send_verification()
-        # print "(verify) I've verified!"
 
 
         verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
         if verify_check == True:
             self.verify.reset_verifications()
-            print "*** I'M OK!!"
 
         elif verify_check == False:
             self.verify.reset_verifications()
             self.vote.unvoted_id = randrange(0, 65535)
             wait_time = randrange(5, 20)
-            print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
+            logger.error("Verification failed, resetting and revoting in %d secs", wait_time)
+            self.verify.reset_verifications()
             self.vote.next_vote_time = time.time() + wait_time
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
@@ -453,7 +433,7 @@ class Swarm():
     def incoming_vote(self, source, target, arguments):
         """if someone else votes we should answer asap"""
 
-        print "(swarm) trig_vote(self,%s,%s,%s)" % (
+        logger.info("(swarm) trig_vote(self,%s,%s,%s)",
                 source.nick,
                 target,
                 " ".join(arguments)
@@ -463,12 +443,12 @@ class Swarm():
             return
 
         if target != self.channel:
-            print "ERROR: Swarm vote in none swarm channel (%s)" % target
+            logger.error("Swarm vote in none swarm channel (%s)", target)
             return False
 
         (incoming_vote_id, incoming_vote_random) = self.vote.parse(arguments, source.nickuserhost)
         if (incoming_vote_id is None) or (incoming_vote_random is None):
-            print "ERROR: error in vote arguments"
+            logger.error("error in vote arguments")
             return False
 
         if self.vote.incoming_vote(incoming_vote_id, incoming_vote_random, source.nick):
@@ -501,7 +481,7 @@ class Swarm():
                 int(self.vote.min_vote_time/100),
                 int(self.vote.min_vote_time/50)
             )+60
-        print "(swarm) joined swarm channel, voting in %s seconds" % (wait_time)
+        logger.debug("(swarm) joined swarm channel, voting in %s seconds", wait_time)
         self.vote.next_vote_time = time.time() + wait_time
         self.bot.add_timer(
                 datetime.timedelta(0, wait_time),
@@ -521,7 +501,7 @@ class Swarm():
         if someone parts the swarm channel we need to
         update the swarm list and recalculate ranges
         """
-        print "(swarm) swarmchan_part(%s)" % (nick)
+        logger.debug("(swarm) swarmchan_part(%s)", nick)
         if nick in self.vote.get_swarm_members():
             self.vote.remove_bot(nick)
 
@@ -546,16 +526,16 @@ class Swarm():
             return
 
         if not self.enabled:
-            print "(swarm) reoccuring_vote() when swarm is disabled, bailing."
+            logger.debug("(swarm) reoccuring_vote() when swarm is disabled, bailing.")
             return
 
         self.vote.unvoted_id = randrange(0, 65535)
         self.send_vote()
-        print "(swarm) voting in %s seconds (at the most)" % (wait_time)
+        logger.debug("(swarm) voting in %s seconds (at the most)", wait_time)
 
 
     def send_verification(self):
-        print "(verify) send_verification()"
+        logger.debug("(verify) send_verification()")
         verification_hash = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid, self.server.mynick)
         self.last_verification_time = time.time()
 
@@ -578,10 +558,10 @@ class Swarm():
             )
 
         if time.time() - self.last_verification_time < 60:
-            print "(swarm) Throtteling verifications, last verification %d secs ago" % (time.time() - self.last_verification_time)
+            logger.debug("(swarm) Throtteling verifications, last verification %d secs ago", time.time() - self.last_verification_time)
             return
         if time.time() - self.vote.last_vote_time < 60:
-            print "(swarm) Throtteling verifcations, last vote %d secs ago" % (time.time() - self.vote.last_vote_time)
+            logger.debug("(swarm) Throtteling verifcations, last vote %d secs ago", time.time() - self.vote.last_vote_time)
             return
 
         self.verify.verification_id = randrange(0,65565)
@@ -590,14 +570,10 @@ class Swarm():
         verify_check = self.verify.verify_verifications(self.vote.get_swarm_members(), self.server.mynick)
 
         if verify_check is None:
-            # print "not all verifications yet."
-            # print " * %s" % (self.verify.vote_verifications[self.verify.verification_id])
-            # print " * %s" % (self.vote.get_swarm_members())
             return
 
         elif verify_check == True:
             self.verify.reset_verifications()
-            print "*** I'M OK!!"
             self.verified = True
             self.client.deferred_join_all = False
 
@@ -605,7 +581,8 @@ class Swarm():
             self.verify.reset_verifications()
             self.vote.unvoted_id = randrange(0, 65535)
             wait_time = randrange(5, 20)
-            print "*** I'M OFF!!!! revoting in %d secs" % (wait_time)
+            logger.error("Verification error, resetting and revoting")
+            self.verify.reset_verifications()
             self.vote.next_vote_time = time.time() + wait_time
             self.bot.add_timer(
                     datetime.timedelta(0, wait_time),
@@ -618,10 +595,10 @@ class Swarm():
     def send_vote(self):
         """create and send vote to swarm-channel"""
         if self.vote.unvoted_id == None:
-            print "(swarm) send_vote(): unvoted_id is None. Escaping."
+            logger.debug("(swarm) send_vote(): unvoted_id is None. Escaping.")
             return
         if not self.enabled:
-            print "(swarm) send_vote(): swarm not enabled. Escaping."
+            logger.debug("(swarm) send_vote(): swarm not enabled. Escaping.")
             return
 
         self.vote.create_vote(self.client.server.mynick, self.server.me.nickuserhost)

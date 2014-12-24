@@ -16,6 +16,9 @@ from autoreloader.autoreloader import AutoReloader
 from ircobjects import User,Ban, Channel, Server
 from swarm import Swarm
 
+import logging
+logger = logging.getLogger('landlady')
+
 def timestamp():
     return datetime.datetime.now().strftime("[%H:%M:%S]")
 
@@ -28,7 +31,7 @@ class IRCClient(AutoReloader):
             self.dbcur.execute("CREATE TABLE IF NOT EXISTS nick_log (nick TEXT, usecount INT, last_used timestamp)")
             self.dbcon.commit()
         except Exception, e:
-            print "ERROR: Couldn't open database, %s" % e
+            logger.error("ERROR: Couldn't open database, %s" % e)
             sys.exit(1)
 
         self.connected = False
@@ -113,7 +116,7 @@ class IRCClient(AutoReloader):
                 nicks.append(rows[0])
 
         if len(nicks) > 0:
-            return nicks[0]
+            return nicks[0][0]
         else:
             return self.availible_bot_nicks[random.randrange(0,len(self.availible_bot_nicks)-1)]
 
@@ -144,20 +147,13 @@ class IRCClient(AutoReloader):
             self.s.connect((address, port))
             self.connected = True
         except Exception, ex:
-            print timestamp() + " " + " Connect failed, " + str(ex)
+            logger.error(timestamp() + " " + " Connect failed, " + str(ex))
             self.connected = False
 
         if self.connected:
             self.s.setblocking(False)
 
         return self.connected
-
-    def log_line(self, line):
-        try:
-            print timestamp() + " " + line
-        except UnicodeEncodeError:
-            # FIXME use bot.settings/rebuild settings
-            print timestamp() + " " + line.encode(settings.Settings().recode_fallback, "replace")
 
     def send(self, line):
         self.send_queue.append(line+"\r\n")
@@ -189,15 +185,13 @@ class IRCClient(AutoReloader):
             self.flood_protected = False
 
         data = self.send_queue.pop(0)
-        self.log_line(" SEND: (%d) %s" % (len(self.send_queue), str(data).replace("\r\n","")))
+        logger.info("SEND: (%d) %s", len(self.send_queue), str(data).replace("\r\n",""))
 
         try:
             sent =  self.s.send(data.encode(settings.Settings().recode_out_default_charset))
         except UnicodeDecodeError:
             # String is probably not unicode, print warning and just send it
-            print
-            print "WARNING IRCClient send called with non unicode string, fix this!"
-            print
+            logger.warn("WARNING IRCClient send called with non unicode string, fix this!")
             sent = self.s.send(data)
         except UnicodeEncodeError:
             # Try fallback coding instead
@@ -335,8 +329,6 @@ class IRCClient(AutoReloader):
 
 
         source_nick = self.get_nick(source)
-
-        #print "on_mode(%s, %s, %s, %s)" % (source, channel, mode, target)
 
         if channel != "":
             if mode == '+b':
@@ -599,7 +591,7 @@ class IRCClient(AutoReloader):
 
     def on_error(self, tupels):
         message = tupels[5]
-        print 'the irc server informs of an error:', message
+        logger.error('the irc server informs of an error: %s', message)
 
         if message in self.throttle_errors:
             self.idle_for(120)
@@ -629,7 +621,7 @@ class IRCClient(AutoReloader):
     def tick(self):
         now = datetime.datetime.now()
         if self.wait_until and self.wait_until > now:
-            self.log_line("TICK DEFERED: %s > %s" % (self.wait_until, now))
+            logger.debug("TICK DEFERED: %s > %s", self.wait_until, now)
             return
 
         if self.connected:
@@ -663,17 +655,17 @@ class IRCClient(AutoReloader):
             except ssl.SSLError, (error_code, error_message):
                 if error_code != errno.EWOULDBLOCK and error_code != errno.ENOENT:
                     self.connected = False
-                    print (error_code, error_message)
+                    logger.error("%s %s", error_code, error_message)
             except socket.error, (error_code, error_message):
                 if error_code != errno.EWOULDBLOCK:
                     self.connected = False
-                    print (error_code, error_message)
+                    logger.error("%s %s", error_code, error_message)
         else:
-            self.log_line("TICK (not connected): %s > %s" % (self.wait_until, now))
+            logger.info("TICK (not connected): %s > %s", self.wait_until, now)
             try:
                 self.connect(self.server_address, self.server_port)
             except socket.error, (error_code, error_message):
-                print "I got an error while trying to connect... Is it wrong to just return now?", (error_code, error_message)
+                logger.error("I got an error while trying to connect... Is it wrong to just return now? %s %s", (error_code, error_message))
                 self.idle_for(60)
                 return
 

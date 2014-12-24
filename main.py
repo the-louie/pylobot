@@ -8,6 +8,17 @@ import select
 import tty
 import termios
 
+import logging
+
+logger = logging.getLogger('landlady')
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
+
 try:
 	import settings
 except ImportError:
@@ -40,8 +51,8 @@ def Tick():
 			if bot.need_reload.has_key('main') and bot.need_reload['main']:
 				reload(ircbot)
 				reload(settings)
-				print "Collected %s objects out of %s. Garbarge are %s objects." % (gc.collect(2),
-					len(gc.get_objects()), len(gc.garbage))
+				logger.debug("Collected %s objects out of %s. Garbarge are %s objects." % (gc.collect(2),
+					len(gc.get_objects()), len(gc.garbage)))
 				bot.need_reload['main'] = False
 				bot.on_reload()
 

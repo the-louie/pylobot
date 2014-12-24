@@ -13,6 +13,8 @@ import hashlib
 import time
 import datetime
 import base64
+import logging
+logger = logging.getLogger('landlady')
 
 class Landlady(Command):
     """main class"""
@@ -76,11 +78,11 @@ class Landlady(Command):
 
     # def trigger_kb(self, trigger_nick, trigger_channel, argument, swarm_match):
     def trigger_kb(self, trigger_nick, trigger_channel, argument, swarm_match):
-        print "trigger_kb(self, %s, %s, %s)" % (trigger_nick, trigger_channel, argument)
+        logger.debug("trigger_kb(self, %s, %s, %s)", trigger_nick, trigger_channel, argument)
 
         """Take care of any incoming kick-ban requests"""
         if trigger_channel != self.settings.kb_settings['command_chan']:
-            print "ERROR: kb-request from outside %s" % (
+            logger.error("ERROR: kb-request from outside %s",
                     self.settings.kb_settings['command_chan'])
             return
 
@@ -97,12 +99,12 @@ class Landlady(Command):
             else:
                 bantime = None
         else:
-            print "(kb) ERROR: wrong number of argumens (%d) for: %s" % (len(arguments), argument)
+            logger.error("(kb) ERROR: wrong number of argumens (%d) for: %s", len(arguments), argument)
             return None
 
 
         if self.swarm.enabled and not self.swarm.nick_matches(target_nick):
-            print "(kb) '%s' don't match" % target_nick
+            logger.error("(kb) '%s' don't match", target_nick)
             return None
 
         user = self.client.server.user_by_nick(target_nick)
@@ -117,7 +119,7 @@ class Landlady(Command):
                 trigger_nick
             )
         if not parsed_kb:
-            print "ERROR: Unknown command, %s,%s,%s." % (
+            logger.error("ERROR: Unknown command, %s,%s,%s.",
                     trigger_nick,
                     trigger_channel,
                     argument
@@ -130,9 +132,6 @@ class Landlady(Command):
 
         # Kickban the user in all channels
         for channel in self.settings.kb_settings['child_chans']:
-            print '(kb) >>> MODE %s +b %s' % (channel, banmask)
-            print '(kb) >>> KICK %s %s :%s' % (channel, target_nick, reason)
-
             self.client.send('MODE %s +b %s' % (channel, banmask))
             self.client.send('KICK %s %s :%s' % (channel, target_nick, reason))
             self.bot.add_timer(
@@ -143,9 +142,6 @@ class Landlady(Command):
                 )
 
         return None
-
-    def dbg(self, text):
-        print text
 
     # def trig_banned(self, event):
     #     """
