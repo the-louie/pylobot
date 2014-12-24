@@ -9,6 +9,7 @@ import random
 import string
 import settings
 import ssl
+import sqlite3
 
 from autoreloader.autoreloader import AutoReloader
 
@@ -20,6 +21,16 @@ def timestamp():
 
 class IRCClient(AutoReloader):
     def __init__(self, bot, address, port, nick, username, realname, password):
+        # connect to db
+        try:
+            self.dbcon = sqlite3.connect('data/landlady.db')
+            self.dbcur = self.dbcon.cursor()
+            self.dbcur.execute("CREATE TABLE IF NOT EXISTS nick_log (nick TEXT, usecount INT, last_used timestamp)")
+            self.dbcon.commit()
+        except Exception, e:
+            print "ERROR: Couldn't open database, %s" % e
+            sys.exit(1)
+
         self.connected = False
         self.active_session = False
 
@@ -30,7 +41,8 @@ class IRCClient(AutoReloader):
         self.s = None
 
         self.availible_bot_nicks = nick
-        self.nick = self.availible_bot_nicks[random.randrange(0,len(self.availible_bot_nicks)-1)]
+        self.nick_blacklist = []
+        self.nick = self.__get_nick__()
 
         self.server_address = address
         self.server_port = port
@@ -92,6 +104,28 @@ class IRCClient(AutoReloader):
                     except Exception:
                         pass
 
+    def __get_nick__(self):
+        self.dbcur.execute("SELECT nick FROM nick_log ORDER BY usecount, last_used")
+        rows = self.dbcur.fetchall()
+        nicks = []
+        for r in rows:
+            if r[0] not in self.nick_blacklist:
+                nicks.append(rows[0])
+
+        if len(nicks) > 0:
+            return nicks[0]
+        else:
+            return self.availible_bot_nicks[random.randrange(0,len(self.availible_bot_nicks)-1)]
+
+    def __remember_nick__(self):
+        self.dbcur.execute("SELECT count(*) as c from nick_log WHERE nick like ?", (self.server.mynick,))
+        rows = self.dbcur.fetchall()
+        if rows[0][0] == 0:
+            self.dbcur.execute("INSERT INTO nick_log (nick, usecount, last_used) VALUES (?, 1, CURRENT_TIMESTAMP)", (self.server.mynick,))
+        else:
+            self.dbcur.execute("UPDATE nick_log SET usecount=usecount+1, last_used=CURRENT_TIMESTAMP WHERE nick LIKE ?", (self.server.mynick,))
+
+        self.dbcon.commit()
 
     def connect(self, address, port):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -355,7 +389,9 @@ class IRCClient(AutoReloader):
 
     def on_nick_inuse(self, tuples):
         oldnick = self.server.mynick
-        newnick = self.availible_bot_nicks[random.randrange(0,len(self.availible_bot_nicks)-1)]
+        self.nick_blacklist.append(oldnick)
+        newnick = self.__get_nick__()
+        #newnick = self.availible_bot_nicks[random.randrange(0,len(self.availible_bot_nicks)-1)]
         self.send("NICK " + newnick)
         self.nick = newnick
         self.server.mynick = newnick
@@ -515,6 +551,8 @@ class IRCClient(AutoReloader):
         self.active_session = True
 
         self.send('WHO %s' % (self.server.mynick))
+
+        self.__remember_nick__()
 
         self.swarm.on_connected()
 
