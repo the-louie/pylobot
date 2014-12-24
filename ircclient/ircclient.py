@@ -16,8 +16,11 @@ from autoreloader.autoreloader import AutoReloader
 from ircobjects import User,Ban, Channel, Server
 from swarm import Swarm
 
+import irclog
 import logging
+import logging.handlers
 logger = logging.getLogger('landlady')
+
 
 def timestamp():
     return datetime.datetime.now().strftime("[%H:%M:%S]")
@@ -33,6 +36,13 @@ class IRCClient(AutoReloader):
         except Exception, e:
             logger.error("ERROR: Couldn't open database, %s" % e)
             sys.exit(1)
+
+        # setup irc loghandler
+        logging.handlers.IRCHandler = irclog.IRCHandler
+        ircHandler = logging.handlers.IRCHandler(self.send)
+        ircHandler.setLevel(logging.ERROR)
+        logger.addHandler(ircHandler)
+        self.log_chan = bot.settings.server["log_channel"]
 
         self.connected = False
         self.active_session = False
@@ -155,6 +165,10 @@ class IRCClient(AutoReloader):
 
         return self.connected
 
+
+    def log_send(self, line):
+        self.send("PRIVMSG " + self.log_chan + " :" + line)
+
     def send(self, line):
         self.send_queue.append(line+"\r\n")
         self.real_send()
@@ -185,7 +199,7 @@ class IRCClient(AutoReloader):
             self.flood_protected = False
 
         data = self.send_queue.pop(0)
-        logger.info("SEND: (%d) %s", len(self.send_queue), str(data).replace("\r\n",""))
+        logger.info("SEND: (sq:%d) %s", len(self.send_queue), str(data).replace("\r\n",""))
 
         try:
             sent =  self.s.send(data.encode(settings.Settings().recode_out_default_charset))
