@@ -7,6 +7,7 @@ import logging
 logger = logging.getLogger('landlady')
 
 MIN_VOTE_TIME = 1600
+MIN_VERIFICATION_TIME = 120
 
 class Votes():
     def __init__(self, secret):
@@ -19,6 +20,7 @@ class Votes():
         self.range = (65535, 0)
         self.votes = {}
         self.min_vote_time = MIN_VOTE_TIME
+        self.min_verification_time = MIN_VERIFICATION_TIME
         self.secret = secret
         self.vote_reply_timer = 0
 
@@ -95,7 +97,13 @@ class Votes():
             return True
         return False
 
-
+    def throttle_verifications(self):
+        if (time.time() - self.last_verification_time) < self.min_verification_time:
+            logger.info("(swarm:throttle_verifications) reoccuring_vote(): throttling verification. %s < %s",
+                    time.time() - self.last_verification_time,
+                    self.min_verification_time)
+            return True
+        return False
 
     def remove_bot(self, nick):
         """
@@ -539,7 +547,7 @@ class Swarm():
         verification_hash = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid, self.server.mynick)
         self.last_verification_time = time.time()
 
-        self.client.tell(self.channel,"%sverify %d %s" % (
+        sent = self.client.send(self.channel,"%sverify %d %s" % (
                 self.bot.settings.trigger,
                 int(self.verify.verification_id),
                 verification_hash))
@@ -557,9 +565,10 @@ class Swarm():
                 self.reoccuring_verification
             )
 
-        if time.time() - self.last_verification_time < 60:
+        if throttle_verifications():
             logger.debug("(swarm:reoccuring_verification) Throtteling verifications, last verification %d secs ago", time.time() - self.last_verification_time)
             return
+
         if time.time() - self.vote.last_vote_time < 60:
             logger.debug("(swarm:reoccuring_verification) Throtteling verifcations, last vote %d secs ago", time.time() - self.vote.last_vote_time)
             return
@@ -602,7 +611,7 @@ class Swarm():
             return
 
         self.vote.create_vote(self.client.server.mynick, self.server.me.nickuserhost)
-        self.client.tell(self.channel,"%svote %d %d %s" % (
+        self.client.send("PRIVMSG " + self.channel + " :" + "%svote %d %d %s" % (
                 self.bot.settings.trigger,
                 self.vote.current_voteid,
                 self.vote.vote_random,
