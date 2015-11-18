@@ -89,7 +89,7 @@ class Votes():
 
     def throttle_votes(self):
         if (time.time() - self.last_vote_time) < self.min_vote_time:
-            logger.info("(swarm) reoccuring_vote(): throttling vote. %s < %s",
+            logger.info("(swarm:throttle_votes) reoccuring_vote(): throttling vote. %s < %s",
                     time.time() - self.last_vote_time,
                     self.min_vote_time)
             return True
@@ -166,7 +166,7 @@ class Votes():
 
         elif self.vote_reply_timer:
             # already a timer running
-            logger.debug("(swarm) triggered vote but vote_reply_timer is %s", self.vote_reply_timer)
+            logger.debug("(swarm:vote_reply_timer) triggered vote but vote_reply_timer is %s", self.vote_reply_timer)
             return False
         else:
             # we already voted on this
@@ -279,7 +279,7 @@ class Swarm():
 
 
     def join_swarm_channels(self):
-        logger.debug("(swarm) join_swarm_channels()")
+        logger.debug("(swarm:join_swarm_channels) join_swarm_channels()")
         if self.client.deferred_join_swarm:
             wait_time = randrange(
                     10,
@@ -299,10 +299,10 @@ class Swarm():
 
     def nick_matches(self, targetnick):
         if not self.enabled:
-            logger.debug("(swarm) not enabled, exiting")
+            logger.debug("(swarm:nick_matches) not enabled, exiting")
             return None
         if targetnick is None:
-            logger.debug("(swarm) target nick is None, exiting")
+            logger.debug("(swarm:nick_matches) target nick is None, exiting")
             return True
 
         return self.vote.nick_matches(targetnick)
@@ -311,7 +311,7 @@ class Swarm():
         """
         enable swarm functions
         """
-        logger.debug("(swarm) enable")
+        logger.debug("(swarm:enable) enable")
         self.enabled = True
 
         # make sure the swarm is opped periodically
@@ -338,7 +338,7 @@ class Swarm():
         """
         disable swarm functions
         """
-        logger.debug("(swarm) disable")
+        logger.debug("(swarm:disable) disable")
         self.enabled = False
 
     def op_bots(self):
@@ -346,7 +346,7 @@ class Swarm():
         op all members of the swarm where appropriate
         """
         if not self.enabled:
-            logger.debug("(swarm) * not enabled")
+            logger.debug("(swarm:op_bots) * not enabled")
             return
 
         for channel_name in self.opchans:
@@ -368,7 +368,7 @@ class Swarm():
 
 
     def incoming_verification(self, source, target, arguments):
-        logger.debug("(swarm) incoming_verification(self, %s, %s, %s)", source, target, arguments)
+        logger.debug("(swarm:incoming_verification) incoming_verification(self, %s, %s, %s)", source, target, arguments)
         if not self.enabled:
             return
 
@@ -433,7 +433,7 @@ class Swarm():
     def incoming_vote(self, source, target, arguments):
         """if someone else votes we should answer asap"""
 
-        logger.info("(swarm) trig_vote(self,%s,%s,%s)",
+        logger.info("(swarm:incoming_vote) trig_vote(self,%s,%s,%s)",
                 source.nick,
                 target,
                 " ".join(arguments)
@@ -481,7 +481,7 @@ class Swarm():
                 int(self.vote.min_vote_time/100),
                 int(self.vote.min_vote_time/50)
             )+60
-        logger.debug("(swarm) joined swarm channel, voting in %s seconds", wait_time)
+        logger.debug("(swarm:swarmchan_join) joined swarm channel, voting in %s seconds", wait_time)
         self.vote.next_vote_time = time.time() + wait_time
         self.bot.add_timer(
                 datetime.timedelta(0, wait_time),
@@ -501,7 +501,7 @@ class Swarm():
         if someone parts the swarm channel we need to
         update the swarm list and recalculate ranges
         """
-        logger.debug("(swarm) swarmchan_part(%s)", nick)
+        logger.debug("(swarm:swarmchan_part) swarmchan_part(%s)", nick)
         if nick in self.vote.get_swarm_members():
             self.vote.remove_bot(nick)
 
@@ -526,12 +526,12 @@ class Swarm():
             return
 
         if not self.enabled:
-            logger.debug("(swarm) reoccuring_vote() when swarm is disabled, bailing.")
+            logger.debug("(swarm:reoccuring_vote) reoccuring_vote() when swarm is disabled, bailing.")
             return
 
         self.vote.unvoted_id = randrange(0, 65535)
         self.send_vote()
-        logger.debug("(swarm) voting in %s seconds (at the most)", wait_time)
+        logger.debug("(swarm:reoccuring_vote) voting in %s seconds (at the most)", wait_time)
 
 
     def send_verification(self):
@@ -558,10 +558,10 @@ class Swarm():
             )
 
         if time.time() - self.last_verification_time < 60:
-            logger.debug("(swarm) Throtteling verifications, last verification %d secs ago", time.time() - self.last_verification_time)
+            logger.debug("(swarm:reoccuring_verification) Throtteling verifications, last verification %d secs ago", time.time() - self.last_verification_time)
             return
         if time.time() - self.vote.last_vote_time < 60:
-            logger.debug("(swarm) Throtteling verifcations, last vote %d secs ago", time.time() - self.vote.last_vote_time)
+            logger.debug("(swarm:reoccuring_verification) Throtteling verifcations, last vote %d secs ago", time.time() - self.vote.last_vote_time)
             return
 
         self.verify.verification_id = randrange(0,65565)
@@ -595,10 +595,10 @@ class Swarm():
     def send_vote(self):
         """create and send vote to swarm-channel"""
         if self.vote.unvoted_id == None:
-            logger.debug("(swarm) send_vote(): unvoted_id is None. Escaping.")
+            logger.debug("(swarm:send_vote) send_vote(): unvoted_id is None. Escaping.")
             return
         if not self.enabled:
-            logger.debug("(swarm) send_vote(): swarm not enabled. Escaping.")
+            logger.debug("(swarm:send_vote) send_vote(): swarm not enabled. Escaping.")
             return
 
         self.vote.create_vote(self.client.server.mynick, self.server.me.nickuserhost)
