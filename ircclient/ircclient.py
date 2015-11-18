@@ -572,6 +572,7 @@ class IRCClient(AutoReloader):
             self.callbacks["on_connected"](event)
 
     def on_isupport(self,tupels):
+        # http://www.irc.org/tech_docs/005.html
         message = tupels[5][:tupels[5].index(':')]
         isupport = {}
         for item in message.split(' '):
