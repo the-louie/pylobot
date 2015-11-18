@@ -171,7 +171,7 @@ class IRCClient(AutoReloader):
 
     def send(self, line):
         self.send_queue.append(line+"\r\n")
-        self.real_send()
+        return self.real_send()
 
     def real_send(self):
         current_second = int(time.time())
@@ -179,8 +179,12 @@ class IRCClient(AutoReloader):
         if not self.send_queue:
             return None
 
+        if len(self.send_queue) > 30:
+            logger.error("Send queue > 30, discarding message.")
+            return None
+
         if self.send_last_second != current_second:
-            if len(self.send_queue_history) >= 10:
+            if len(self.send_queue_history) >= 11:
                 self.send_queue_history.pop(0)
             self.send_queue_history.append(0)
 
@@ -188,11 +192,11 @@ class IRCClient(AutoReloader):
             self.send_queue_history.append(0)
 
         if self.flood_protected:
-            if time.time() - self.send_time < 10:
+            if time.time() - self.send_time < 11:
                 return None
 
 
-        if sum(self.send_queue_history) >= 4:
+        if sum(self.send_queue_history) >= 3:
             self.flood_protected = True
             return None
         else:
