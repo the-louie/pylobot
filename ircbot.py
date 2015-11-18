@@ -162,10 +162,10 @@ class IRCBot(AutoReloader):
         logger.debug("(net) nick: %s" % self.client.server.mynick)
         logger.debug("(net) channels: %d" % len(self.client.server.all_channels))
         logger.debug("(net) known users: %d" % len(self.client.server.all_users))
+        logger.debug("(net) deferred join all: %s" % (self.client.deferred_join_all))
 
         for channel in self.client.server.all_channels:
-            logger.debug("(%s) users: %d" % (channel.name, len(channel.user_list)))
-            logger.debug("(%s) bans: %d" % (channel.name, len(channel.ban_list)))
+            logger.debug("(%s)\tusers: %d\tbans: %d" % (channel.name, len(channel.user_list), len(channel.ban_list)))
             # for ban in channel.ban_list:
             #     print "(%s)\t * %s (%s @%s)" % (channel.name, ban.banmask, ban.banner_nick, ban.timestamp)
 
