@@ -17,6 +17,7 @@ class Votes():
         self.vote_hash = ""
         self.next_vote_time = 0
         self.last_vote_time = 0
+        self.last_verification_time = 0
         self.range = (65535, 0)
         self.votes = {}
         self.min_vote_time = MIN_VOTE_TIME
@@ -545,9 +546,14 @@ class Swarm():
     def send_verification(self):
         logger.debug("(verify) send_verification()")
         verification_hash = self.verify.create_verification_hash(self.vote.votes[self.vote.current_voteid], self.vote.current_voteid, self.server.mynick)
-        self.last_verification_time = time.time()
 
-        sent = self.client.send(self.channel,"%sverify %d %s" % (
+        if self.vote.throttle_verifications():
+            logger.debug("(swarm:reoccuring_verification) Throtteling verifications, last verification %d secs ago", time.time() - self.vote.last_verification_time)
+            return
+
+        self.vote.last_verification_time = time.time()
+
+        sent = self.client.send("PRIVMSG " + self.channel + " :%sverify %d %s" % (
                 self.bot.settings.trigger,
                 int(self.verify.verification_id),
                 verification_hash))
@@ -565,8 +571,8 @@ class Swarm():
                 self.reoccuring_verification
             )
 
-        if throttle_verifications():
-            logger.debug("(swarm:reoccuring_verification) Throtteling verifications, last verification %d secs ago", time.time() - self.last_verification_time)
+        if self.vote.throttle_verifications():
+            logger.debug("(swarm:reoccuring_verification) Throtteling verifications, last verification %d secs ago", time.time() - self.vote.last_verification_time)
             return
 
         if time.time() - self.vote.last_vote_time < 60:
@@ -609,9 +615,10 @@ class Swarm():
         if not self.enabled:
             logger.debug("(swarm:send_vote) send_vote(): swarm not enabled. Escaping.")
             return
-
+        if self.vote.throttle_votes():
+            return
         self.vote.create_vote(self.client.server.mynick, self.server.me.nickuserhost)
-        self.client.send("PRIVMSG " + self.channel + " :" + "%svote %d %d %s" % (
+        self.client.send("PRIVMSG " + self.channel + " :%svote %d %d %s" % (
                 self.bot.settings.trigger,
                 self.vote.current_voteid,
                 self.vote.vote_random,
