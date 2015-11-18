@@ -170,7 +170,7 @@ class IRCBot(AutoReloader):
             #     print "(%s)\t * %s (%s @%s)" % (channel.name, ban.banmask, ban.banner_nick, ban.timestamp)
 
         """trigger on debug_info signal and print debug info"""
-        print "(swarm) enabled: %s" % self.client.swarm.enabled
+        logger.debug("(swarm) enabled: %s" % self.client.swarm.enabled)
         if self.client.swarm.enabled:
             #print "(swarm) old votes: %s" % (self.client.swarm.votes)
             logger.debug("(swarm) voteid: %s (%s)" % (
